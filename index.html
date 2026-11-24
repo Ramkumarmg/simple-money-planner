@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Simple Money Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a calm, plain-spoken money desk; no jargon without an explanation next to it
+   IDEA: a bank passbook page: you write two numbers, it prints the answer large
+   PICTURE: the live result in a yellow slab beside the inputs, with a range bar and the plan's mix
+   COLOUR and TYPE: white / ink #101418, one warm yellow slab, risk colours green to red; Manrope throughout
+   LAYOUT: tabs, then inputs left and result right; plan, comparison and guide follow below */
+:root{color-scheme:light dark;--bg:light-dark(#fff,#101418);--ink:light-dark(#101418,#eef1f4);--mut:light-dark(#5b6670,#9aa5af);--line:light-dark(#e3e7eb,#27313b);--card:light-dark(#f5f6f8,#171f27);--y:#ffd84a;--yi:#101418;--acc:light-dark(#1f5bd8,#7aa5ff);--r1:#2e9e6b;--r2:#7cb342;--r3:#e6a100;--r4:#e8692c;--r5:#d23b3b}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Manrope,system-ui,sans-serif;overflow-x:clip}
+.band{padding:clamp(20px,3.5vw,48px) max(5vw,16px)}.wrap{max-width:1240px;margin:0 auto}
+h1{font-size:clamp(30px,4.4vw,46px);line-height:1.05;margin:0 0 8px;font-weight:800;text-wrap:balance;letter-spacing:-.02em}
+h2{font-size:clamp(22px,2.6vw,30px);line-height:1.15;margin:0 0 6px;font-weight:800;letter-spacing:-.01em}
+h3{font-size:17px;margin:0;font-weight:700}
+p{margin:0 0 10px}.mut{color:var(--mut)}.sm{font-size:14px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:18px}
+.tab{font:inherit;font-weight:700;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);padding:10px 18px;border-radius:999px;cursor:pointer;min-height:44px}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:clamp(16px,3vw,36px);align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}}
+.step{margin-bottom:22px}.step>label,.lbl{display:block;font-weight:700;margin-bottom:8px}
+.num{display:inline-flex;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:13px;align-items:center;justify-content:center;margin-right:8px}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.chip{font:inherit;font-size:15px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);padding:8px 14px;border-radius:10px;cursor:pointer;min-height:44px}
+.chip[aria-pressed=true]{border-color:var(--ink);background:var(--card);font-weight:700;box-shadow:inset 0 0 0 1px var(--ink)}
+.money{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:12px;padding:0 14px;background:var(--bg);margin-bottom:8px}
+.money span{font-weight:800;font-size:22px}
+.money input{border:0;background:none;color:var(--ink);font:800 24px Manrope,sans-serif;padding:10px 8px;width:100%;outline:none}
+.money:focus-within{border-color:var(--acc)}
+.hint{font-size:14px;color:var(--mut);margin-top:4px}
+input[type=range]{width:100%;accent-color:var(--ink);height:32px}
+.yrs{display:flex;justify-content:space-between;align-items:baseline}.yrs b{font-size:22px}
+.risk{display:grid;gap:8px}
+.rk{text-align:left;font:inherit;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:12px;padding:12px 14px;cursor:pointer;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;align-items:center}
+.rk[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);background:var(--card)}
+.rk i{grid-row:span 2;width:14px;height:14px;border-radius:50%}.rk small{color:var(--mut);font-size:14px}
+.result{background:var(--y);color:var(--yi);border-radius:18px;padding:clamp(18px,3vw,30px);position:sticky;top:12px}
+@media(max-width:860px){.result{position:static}}
+.big{font-size:clamp(44px,7vw,76px);font-weight:800;line-height:1;letter-spacing:-.03em;margin:6px 0 10px;white-space:nowrap}
+.result .row{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:15px;padding:7px 0;border-top:1px solid rgba(16,20,24,.15)}
+.result .row b{white-space:nowrap}
+.rbar{position:relative;height:56px;margin:14px 0 4px}
+.rbar .tr{position:absolute;left:0;right:0;top:22px;height:10px;border-radius:6px;background:rgba(16,20,24,.12)}
+.rbar .rg{position:absolute;top:22px;height:10px;border-radius:6px;background:#101418}
+.rbar .mk{position:absolute;top:0;transform:translateX(-50%);font-size:12px;font-weight:700;white-space:nowrap}
+.rbar .mk.b{top:36px}.rbar .dot{position:absolute;top:18px;width:4px;height:18px;margin-left:-2px;background:#d23b3b;border-radius:2px}
+.mix{display:flex;height:16px;border-radius:8px;overflow:hidden;margin:10px 0 6px;background:rgba(16,20,24,.1)}
+.opts{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:12px;font-size:14px}
+.opts label{display:flex;gap:6px;align-items:center;cursor:pointer;min-height:32px}
+.opts select,.opts input[type=number]{font:inherit;font-size:16px;border:1px solid rgba(16,20,24,.3);border-radius:8px;padding:4px 6px;background:#fff;color:#101418;width:auto}
+.note{background:var(--card);border-radius:14px;padding:14px 16px;margin:0 0 16px;border-left:0}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:14px}
+.card{border:1.5px solid var(--line);border-radius:16px;padding:16px;background:var(--bg)}
+.card .top{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.sw{width:14px;height:14px;border-radius:4px;flex:none;margin-top:4px}
+.pct{font-size:26px;font-weight:800;line-height:1;white-space:nowrap}
+.meter{display:inline-flex;gap:3px;vertical-align:middle}.meter i{width:10px;height:10px;border-radius:2px;background:var(--line)}
+.lnk{font:inherit;font-weight:700;color:var(--acc);background:none;border:0;padding:8px 0;cursor:pointer;text-decoration:underline;text-underline-offset:3px;min-height:40px}
+.funds{margin:6px 0 0;padding:0;list-style:none}
+.funds li{padding:7px 0;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;font-size:15px}
+.funds li>div{min-width:0}.rets{display:flex;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin-top:2px}.rets b{color:var(--ink)}
+.funds a{color:var(--acc);font-size:13px;white-space:nowrap;font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th{text-align:left;font-size:13px;color:var(--mut);font-weight:700;padding:8px;border-bottom:1.5px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.n,th.n{text-align:right;white-space:nowrap}
+.badge{display:inline-block;font-size:13px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.b-yes{background:color-mix(in srgb,var(--r1) 18%,transparent);color:light-dark(#1d6e4a,#7fd8ab)}
+.b-ok{background:color-mix(in srgb,var(--r3) 20%,transparent);color:light-dark(#7a5600,#ffd479)}
+.b-no{background:color-mix(in srgb,var(--r5) 15%,transparent);color:light-dark(#a12a2a,#ff9d9d)}
+.b-info{background:var(--card);color:var(--mut)}
+.nm{font:inherit;font-weight:700;color:var(--ink);background:none;border:0;padding:0;text-align:left;cursor:pointer;text-decoration:underline dotted;text-underline-offset:4px}
+.tl{display:grid;grid-template-columns:minmax(120px,210px) minmax(0,1fr);gap:4px 12px;align-items:center;font-size:14px}
+.tl .ax{position:relative;height:22px;font-size:12px;color:var(--mut)}.tl .ax span{position:absolute;transform:translateX(-50%)}
+.tl .bar{position:relative;height:18px;background:var(--card);border-radius:5px}
+.tl .bar i{position:absolute;top:0;bottom:0;border-radius:5px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mut);margin:10px 0}.legend i{display:inline-block;width:18px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
+details{border-top:1px solid var(--line);padding:10px 0}summary{cursor:pointer;font-weight:700;min-height:32px}
+dl{margin:8px 0}dt{font-weight:700;margin-top:10px}dd{margin:2px 0 0}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:flex-end;justify-content:center;z-index:9;padding:12px}
+.ov.on{display:flex}
+.modal{background:var(--bg);color:var(--ink);border-radius:18px;max-width:640px;width:100%;max-height:88vh;overflow:auto;padding:22px}
+@media(min-width:700px){.ov{align-items:center}}
+.x{float:right;font:inherit;font-size:22px;background:var(--card);border:0;border-radius:50%;width:44px;height:44px;cursor:pointer;color:var(--ink)}
+.kv{display:grid;grid-template-columns:9em minmax(0,1fr);gap:6px 12px;font-size:15px;margin:12px 0}.kv b{color:var(--mut);font-weight:600}
+.warn{font-size:14px;color:var(--mut);border-top:1px solid var(--line);padding-top:14px;margin-top:24px}
+.scroll{overflow-x:auto}
+.rkctl{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px 28px;margin-top:14px;align-items:end}
+@media(max-width:700px){.rkctl{grid-template-columns:minmax(0,1fr)}}
+.pk{display:inline-flex;align-items:center;gap:8px;font-weight:700}.pk i{width:12px;height:12px;border-radius:50%}
+#rk-fig{position:relative;min-height:320px;margin-top:8px}#rk-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}@media(max-width:600px){#rk-fig{min-height:250px}}
+#rk-svg text{font:12px Manrope,sans-serif;fill:var(--mut)}
+.quiz{border:0;padding:6px 0 0}.quiz summary{font-size:15px;color:var(--acc);font-weight:700}
+.acc{border:1.5px solid var(--line);border-radius:16px;padding:4px 18px;margin-top:12px}.acc>summary{padding:12px 0;font-size:17px;list-style-position:inside}.acc[open]>summary{border-bottom:1px solid var(--line);margin-bottom:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800;background:#101418;color:#fff;border-radius:999px;padding:3px 10px;margin-bottom:8px}.pill i{width:9px;height:9px;border-radius:50%}
+.ck{display:flex;gap:10px;align-items:center;min-height:44px;cursor:pointer;font-weight:600}.ck input{width:22px;height:22px;accent-color:var(--ink);flex:none}
+.gs.fade{opacity:.55}.gs .gv{font-size:28px;font-weight:800;line-height:1.1;white-space:nowrap}
+.tlb{position:relative;height:14px;border-radius:7px;background:var(--card);margin:14px 0 6px}
+.tlb i{position:absolute;top:0;bottom:0;border-radius:7px}.tlb b{position:absolute;top:-4px;width:22px;height:22px;margin-left:-11px;border-radius:50%;background:var(--y);border:3px solid var(--ink)}
+.tll{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--mut)}
+.stt{font-size:13px;font-weight:700;margin-top:8px}
+.ytab{font-size:14px;margin-top:6px}.ytab td,.ytab th{padding:6px 4px}
+.rcs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px;margin-top:14px}
+.rc{font:inherit;text-align:left;color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:16px;padding:16px;cursor:pointer;display:block;width:100%}
+.rc[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink);background:var(--card)}
+.rc:hover{border-color:var(--mut)}
+.rc .hd{display:flex;align-items:center;gap:8px;font-weight:800;font-size:19px}.rc .hd i{width:14px;height:14px;border-radius:50%}
+.rc .tag{margin-left:auto;font-size:12px;font-weight:700;background:var(--ink);color:var(--bg);padding:2px 8px;border-radius:999px}
+.rc dl{margin:10px 0 0}.rc dt{font-size:13px;color:var(--mut);font-weight:600;margin-top:10px}.rc dd{margin:0;font-size:20px;font-weight:800;white-space:nowrap}
+.rc dd small{font-size:13px;font-weight:600;color:var(--mut);white-space:normal}
+.lossbar{height:8px;border-radius:4px;background:var(--card);margin-top:4px;overflow:hidden}.lossbar i{display:block;height:100%;border-radius:4px}
+.yl{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:10px}
+.yl div{background:var(--card);border-radius:10px;padding:8px;text-align:center;font-size:13px}.yl b{display:block;font-size:17px}
+.grow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 5.2em 44px;gap:6px;align-items:center;margin-bottom:8px}
+.grow .money{margin:0;padding:0 10px}.grow .money span{font-size:16px}.grow .money input{font-size:16px;font-weight:700;padding:10px 4px}
+.in{font:inherit;font-size:16px;border:1.5px solid var(--line);border-radius:12px;padding:10px;background:var(--bg);color:var(--ink);width:100%}
+.ghd{font-size:13px;color:var(--mut);margin-bottom:4px}
+@media(max-width:600px){.grow{grid-template-columns:minmax(0,1fr) 4.6em 44px;padding:8px 0;border-bottom:1px solid var(--line)}.grow>.in:first-child{grid-column:1/-1}.ghd{display:none}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--mut)}.stack td:empty{display:none}.stack td.n{text-align:start}.tl{grid-template-columns:minmax(0,1fr)}.tl .lab{margin-top:6px}.tl .axl{display:none}.kv{grid-template-columns:minmax(0,1fr)}}
+@media(prefers-reduced-motion:no-preference){.big{transition:opacity .2s}.rbar .rg{transition:left .3s,width .3s}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="band" style="padding-bottom:0"><div class="wrap">
+  <h1>Simple Money Planner</h1>
+  <p class="mut">Tell it how much and for how long. It shows where to put the money, what you might end up with, and example funds, all in plain words.</p>
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-grow" aria-selected="true">I want to invest</button>
+    <button class="tab" role="tab" id="t-goal" aria-selected="false">I have a goal</button>
+    <button class="tab" role="tab" id="t-many" aria-selected="false">Plan many goals</button>
+    <button class="tab" role="tab" id="t-gov" aria-selected="false">Govt &amp; post office schemes</button>
+    <button class="tab" role="tab" id="t-learn" aria-selected="false">Learn every option</button>
+  </nav>
+</div></header>
+
+<main>
+<!-- GROW -->
+<section class="band" id="p-grow"><div class="wrap">
+  <div class="grid">
+    <div>
+      <div class="step"><span class="lbl"><span class="num">1</span>How will you invest?</span>
+        <div class="seg" id="g-mode"><button class="chip" data-v="sip" aria-pressed="true">Every month (SIP)</button><button class="chip" data-v="lump" aria-pressed="false">One time (lump sum)</button></div></div>
+      <div class="step"><label for="g-amt"><span class="num">2</span><span id="g-amtlbl">How much every month?</span></label>
+        <div class="money"><span>₹</span><input id="g-amt" inputmode="numeric" autocomplete="off" value="1,000"></div>
+        <div class="seg" id="g-chips"></div><div class="hint" id="g-words"></div></div>
+      <div class="step"><label for="g-yrs"><span class="num">3</span>For how many years?</label>
+        <div class="yrs"><b id="g-ylab">5 years</b><span class="mut sm" id="g-yend"></span></div>
+        <input type="range" id="g-yrs" min="1" max="30" value="5"></div>
+      <div class="step"><span class="lbl"><span class="num">4</span>How much risk are you comfortable with?</span>
+        <div class="risk" data-risk></div></div>
+    </div>
+    <div class="result" aria-live="polite" id="g-res"></div>
+  </div>
+  <div id="g-risk" style="margin-top:40px">
+    <h2>Compare risk levels for the same money</h2>
+    <p class="mut" id="rk-sub"></p>
+    <div class="note" id="rk-msg" style="margin-top:14px"></div>
+    <div class="rcs" id="rk-cards"></div>
+    <details class="acc"><summary><b>Watch your money grow</b> <span class="mut sm">and play a sample market</span></summary>
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3 id="rk-ct"></h3><button class="chip" id="rk-play" style="font-weight:700;background:var(--ink);color:var(--bg);border-color:var(--ink)">▶ Play a sample market</button></div>
+      <p class="sm" id="rk-cap" style="margin:8px 0 0;min-height:24px"></p>
+      <div class="fig" id="rk-fig"><svg id="rk-svg" role="img" aria-label="Growth chart"></svg></div>
+      <div class="legend" id="rk-leg"></div>
+    </details>
+    <details class="acc"><summary><b>Time makes risk smaller</b></summary>
+      <p class="sm mut" style="margin:4px 0 0" id="rk-ylt"></p>
+      <div class="yl" id="rk-yl"></div>
+      <p class="sm mut" style="margin:10px 0 12px">Estimates from long-term market behaviour, not promises.</p>
+    </details>
+  </div>
+</div></section>
+<section class="band" id="p-grow2" style="padding-top:0"><div class="wrap">
+  <h2>Your simple plan</h2><div id="g-plan"></div>
+  <h2 style="margin-top:36px">Every option, checked for your <span id="g-ytxt"></span></h2>
+  <p class="mut sm">What each option alone might grow your money to. Tap a name to see what it is and example funds.</p>
+  <table class="stack" id="g-cmp"></table>
+</div></section>
+
+<!-- GOAL -->
+<section class="band" id="p-goal" hidden><div class="wrap">
+  <div class="grid">
+    <div>
+      <div class="step"><label for="r-amt"><span class="num">1</span>How much do you want?</label>
+        <div class="money"><span>₹</span><input id="r-amt" inputmode="numeric" autocomplete="off" value="1,00,00,000"></div>
+        <div class="seg" id="r-chips"></div><div class="hint" id="r-words"></div></div>
+      <div class="step"><label for="r-yrs"><span class="num">2</span>In how many years?</label>
+        <div class="yrs"><b id="r-ylab">5 years</b><span class="mut sm" id="r-yend"></span></div>
+        <input type="range" id="r-yrs" min="1" max="30" value="5"></div>
+      <div class="step"><span class="lbl"><span class="num">3</span>How much risk are you comfortable with?</span>
+        <div class="risk" data-risk></div></div>
+      <div class="step"><label for="r-now"><span class="num">4</span>Money you can invest today (optional)</label>
+        <div class="money"><span>₹</span><input id="r-now" inputmode="numeric" autocomplete="off" value="0"></div></div>
+      <div class="step"><span class="lbl"><span class="num">5</span>Can you raise your SIP every year? <span class="mut sm">(as your salary grows)</span></span>
+        <div class="seg" id="r-step"><button class="chip" data-v="0" aria-pressed="true">No</button><button class="chip" data-v="5" aria-pressed="false">+5% a year</button><button class="chip" data-v="10" aria-pressed="false">+10% a year</button><button class="chip" data-v="15" aria-pressed="false">+15% a year</button></div></div>
+      <div class="step"><label style="display:flex;gap:10px;align-items:center;font-weight:600;cursor:pointer"><input type="checkbox" id="r-real" style="width:22px;height:22px;accent-color:var(--ink)"> My goal is in today's prices <span class="mut sm">(raise it for inflation)</span></label></div>
+    </div>
+    <div class="result" aria-live="polite" id="r-res"></div>
+  </div>
+  <h2 style="margin-top:36px">Where that money goes</h2><div id="r-plan"></div>
+</div></section>
+
+<!-- MANY -->
+<section class="band" id="p-many" hidden><div class="wrap">
+  <div class="grid">
+    <div>
+      <div class="step"><span class="lbl"><span class="num">1</span>Your goals <span class="mut sm">(amounts in today's prices)</span></span>
+        <div id="m-rows"></div>
+        <div class="sm mut" style="margin:12px 0 6px">Add a goal</div><div class="seg" id="m-add"></div></div>
+      <div class="step"><span class="lbl"><span class="num">2</span>How much risk are you comfortable with?</span>
+        <div class="risk" data-risk></div></div>
+      <div class="step"><span class="lbl"><span class="num">3</span>Can you raise your SIPs every year?</span>
+        <div class="seg" id="m-step"><button class="chip" data-v="0" aria-pressed="true">No</button><button class="chip" data-v="5" aria-pressed="false">+5% a year</button><button class="chip" data-v="10" aria-pressed="false">+10% a year</button><button class="chip" data-v="15" aria-pressed="false">+15% a year</button></div></div>
+      <div class="step"><label for="m-bud"><span class="num">4</span>How much can you invest every month in total? <span class="mut sm">(optional)</span></label>
+        <div class="money"><span>₹</span><input id="m-bud" inputmode="numeric" autocomplete="off" value="0"></div></div>
+    </div>
+    <div class="result" aria-live="polite" id="m-res"></div>
+  </div>
+  <h2 style="margin-top:36px">Goal by goal</h2>
+  <p class="mut sm">Each goal gets its own plan: near goals stay safe, far goals can grow in shares. Tap "See plan" for the full split and example funds.</p>
+  <table class="stack" id="m-tab"></table>
+  <div class="note" style="margin-top:18px"><b>Which goal comes first?</b> 1) Emergency fund (6 months of expenses), 2) term and health insurance, 3) retirement, 4) children's education, 5) house, 6) car, travel and other wants. If money is short, delay or shrink the wants, not retirement. Children can get an education loan, but nobody lends you money for retirement.</div>
+</div></section>
+
+<!-- GOV -->
+<section class="band" id="p-gov" hidden><div class="wrap">
+  <h2>Pay now, get a fixed amount later</h2>
+  <p class="mut">Government-backed schemes from the post office and RBI. The rate is fixed when you invest, so you know exactly what you'll get and when. Rates for Oct–Dec 2026.</p>
+  <div class="grid" style="margin-top:18px">
+    <div>
+      <div class="step"><span class="lbl"><span class="num">1</span>How do you want to pay?</span>
+        <div class="seg" id="v-mode"><button class="chip" data-gm="lump">One time</button><button class="chip" data-gm="month">Every month</button><button class="chip" data-gm="year">Every year</button></div></div>
+      <div class="step"><label for="v-amt"><span class="num">2</span><span id="v-amtlbl">How much?</span></label>
+        <div class="money"><span>₹</span><input id="v-amt" inputmode="numeric" autocomplete="off"></div>
+        <div class="seg" id="v-chips"></div></div>
+      <div class="step"><label for="v-lock"><span class="num">3</span>For how long can you lock this money?</label>
+        <div class="yrs"><b id="v-llab"></b><span class="mut sm">schemes longer than this are greyed out</span></div>
+        <input type="range" id="v-lock" min="1" max="21" value="5"></div>
+      <div class="step"><span class="lbl"><span class="num">4</span>Tick what applies to you</span>
+        <label class="ck"><input type="checkbox" id="v-60"> I am 60 or older <span class="mut sm">(Senior Citizens Scheme)</span></label>
+        <label class="ck"><input type="checkbox" id="v-dau"> I have a daughter under 10 <span class="mut sm">(Sukanya Samriddhi)</span></label></div>
+    </div>
+    <div class="result" aria-live="polite" id="v-res"></div>
+  </div>
+  <h2 style="margin-top:36px" id="v-h">All schemes for your money</h2>
+  <p class="mut sm">Dark part of each bar = years you pay. Light part = years you wait. ● = when you get your money.</p>
+  <div class="cards" id="v-cards" style="margin-top:12px"></div>
+  <div class="note" style="margin-top:18px"><b>Good to know.</b> Open these at any post office or through the India Post (IPPB) app. RBI Floating Rate Bonds are sold through banks. The rate you lock in stays the same until maturity (PPF and Sukanya change every quarter). Most of these are taxable, except PPF and Sukanya Samriddhi. In the old tax regime, PPF, NSC, Sukanya, SCSS and the 5-year Time Deposit also give an 80C deduction (up to ₹1.5 lakh in total).</div>
+</div></section>
+
+<!-- LEARN -->
+<section class="band" id="p-learn" hidden><div class="wrap">
+  <h2>Which option suits how many years</h2>
+  <p class="mut">The lighter part of each bar means "possible", the solid part means "a good fit". The colour shows how much the value can go up and down. Tap any name for details and example funds.</p>
+  <div class="seg" id="l-filter" style="margin:12px 0"></div>
+  <div class="legend"><span><i style="background:var(--r1)"></i>Very low risk</span><span><i style="background:var(--r2)"></i>Low</span><span><i style="background:var(--r3)"></i>Medium</span><span><i style="background:var(--r4)"></i>High</span><span><i style="background:var(--r5)"></i>Very high</span></div>
+  <div class="tl" id="l-tl"></div>
+  <h2 style="margin-top:40px">Government &amp; post office schemes at a glance</h2>
+  <p class="mut sm">Backed by the Government of India. Small-savings rates are reset every quarter (shown: Oct–Dec 2026).</p>
+  <table class="stack" id="l-gov"></table>
+  <h2 style="margin-top:40px">Words you'll see</h2>
+  <div id="l-gloss"></div>
+  <h2 style="margin-top:40px">Mistakes beginners make</h2>
+  <div class="cards" id="l-mist"></div>
+</div></section>
+
+<footer class="band" style="padding-top:0"><div class="wrap warn">
+  <p><b>Please read.</b> This is an educational tool, not personal financial advice, and it was not made by a SEBI-registered advisor. Returns for market-linked options are planning assumptions based on long-term Indian market history. They are not promises: real returns can be much higher or lower, and you can lose money. The example funds are well-known, large funds in each category, listed in no order. They are not recommendations, so check the latest returns and costs before investing. Always choose the <b>Direct – Growth</b> version.</p>
+  <p>Rates as of 24 Nov 2026: PPF 7.1%, NSC 7.7%, SSY and SCSS 8.2%, KVP 7.5%, MIS 7.4%, Post Office Time Deposit 6.9–7.5%, Post Office RD 6.7% (Ministry of Finance, Oct–Dec 2026 quarter); EPF 8.25% (FY 2025-26); no new Sovereign Gold Bonds since Feb 2024; RBI Floating Rate Savings Bonds 8.05%; SBI retail FD 6.05–6.45% for 1–10 years. Tax: equity funds 20% if sold within a year, 12.5% after a year above ₹1.25 lakh profit per year; debt funds at your slab rate. Small-savings rates change every quarter. Fund returns load live from AMFI NAV data (via mfapi.in) when the page can reach it; otherwise the snapshot from 24 Nov 2026 is shown.</p>
+</div></footer>
+</main>
+
+<div class="ov" id="ov" role="dialog" aria-modal="true"><div class="modal" id="modal"></div></div>
+
+<script>
+{
+const C=[
+{id:'fd',rt:'Bank 6–7%, PO RD 6.7%',n:'FD / RD (bank or post office)',g:'Government & post office',r:1,ret:6.5,vol:0,min:0,ideal:0,tax:'slab',what:'You lend money to a bank and get a fixed interest rate. Use an FD for one-time money and an RD (bank, or post office at 6.7% for 5 yrs) for monthly saving.',good:'Money you cannot risk at all, or short goals.',watch:'After tax and inflation it barely grows. Deposits are insured only up to ₹5 lakh per bank.',lock:'Can be broken early with a small penalty',fl:'Where to get it',f:['SBI (6.05–6.45% for 1–10 yrs)','HDFC Bank','ICICI Bank','Post Office Time Deposit / RD (RD 6.7%, 5 yrs)','Small finance banks (higher rates, keep under ₹5 lakh each)'],buy:'Your bank app or the post office.'},
+{id:'ppf',rt:'7.1%',n:'PPF (Public Provident Fund)',g:'Government & post office',r:1,ret:7.1,vol:0,min:15,ideal:15,lockY:15,tax:'ex',what:'A government savings account with a 15-year lock-in. Interest is completely tax-free.',good:'Very safe long-term money, such as retirement or a child\'s future.',watch:'Locked for 15 years (partial withdrawal from year 7). Maximum ₹1.5 lakh a year.',lock:'15 years',fl:'Where to get it',f:['SBI','Post Office','HDFC Bank','ICICI Bank','Most big banks'],buy:'Open it in your bank app or at the post office.'},
+{id:'nsc',rt:'7.7%',n:'NSC (National Savings Certificate)',g:'Government & post office',r:1,ret:7.7,vol:0,min:5,ideal:5,lockY:5,tax:'slab',what:'A 5-year post office certificate with a fixed government rate.',good:'Safe 5-year goals. Also saves tax under 80C in the old tax regime.',watch:'Locked for 5 years. The interest is taxable.',lock:'5 years',fl:'Where to get it',f:['Any post office','India Post app (IPPB)'],buy:'Post office.'},
+{id:'kvp',rt:'7.5%',n:'KVP (Kisan Vikas Patra)',g:'Government & post office',r:1,ret:7.5,vol:0,min:3,ideal:9,lockY:3,tax:'slab',what:'A post office scheme that doubles your money in 115 months (about 9.6 years).',good:'Simple, safe "double my money" savings.',watch:'Interest is taxable. It\'s locked for 2.5 years and gives lower returns than equity over long periods.',lock:'2.5 years minimum',fl:'Where to get it',f:['Any post office'],buy:'Post office.'},
+{id:'frb',rt:'8.05%',n:'RBI Floating Rate Savings Bonds',g:'Government & post office',r:1,ret:8.05,vol:0,min:7,ideal:7,lockY:7,tax:'slab',what:'Government of India bonds paying 8.05% now (the rate resets every 6 months). Interest is paid out every half-year.',good:'Large, very safe sums you won\'t touch for 7 years.',watch:'Locked for 7 years (earlier only for senior citizens). Interest is fully taxable.',lock:'7 years',fl:'Where to get it',f:['SBI','HDFC Bank','ICICI Bank','Axis Bank','RBI Retail Direct'],buy:'Through an agency bank or RBI Retail Direct.'},
+{id:'scss',rt:'8.2%',n:'SCSS (Senior Citizens Savings)',g:'Government & post office',r:1,ret:8.2,vol:0,min:5,ideal:5,lockY:5,tax:'slab',elig:'Age 60+ only',what:'A high-interest government scheme for people aged 60 or above. It pays interest every quarter.',good:'Regular income for retired parents.',watch:'Only for age 60+. Maximum ₹30 lakh. Interest is taxable.',lock:'5 years',fl:'Where to get it',f:['Post Office','SBI','Bank of Baroda','ICICI Bank','HDFC Bank'],buy:'Post office or a bank.'},
+{id:'ssy',rt:'8.2%',n:'Sukanya Samriddhi (SSY)',g:'Government & post office',r:1,ret:8.2,vol:0,min:15,ideal:15,lockY:15,tax:'ex',elig:'Daughter under 10 only',what:'A tax-free government account for a daughter\'s education or marriage.',good:'Parents of a girl under 10.',watch:'You deposit for 15 years and it matures at 21 years. Maximum ₹1.5 lakh a year.',lock:'Until she turns 18 (partly) or 21',fl:'Where to get it',f:['Post Office','SBI','Most big banks'],buy:'Post office or a bank.'},
+{id:'nps',rt:'Market-linked',n:'NPS (National Pension System)',g:'Retirement',r:3,ret:10,vol:10,min:15,ideal:15,lockY:15,tax:'nps',elig:'Retirement money only',what:'A low-cost government pension account that invests in shares and bonds for you.',good:'Retirement, plus an extra ₹50,000 tax deduction (80CCD(1B)) in the old regime.',watch:'Mostly locked until age 60, and part of the money must buy a pension. Rules were updated recently, so check npstrust.org.in.',lock:'Until age 60',fl:'Pension fund managers',f:['SBI Pension Funds','HDFC Pension Fund','ICICI Prudential Pension Fund','UTI Retirement Solutions','Kotak Pension Fund','Axis Pension Fund'],buy:'eNPS website, your bank, or apps.'},
+{id:'potd',n:'Post Office Time Deposit',g:'Government & post office',r:1,ret:7.5,rf:Y=>Y<2?6.9:Y<3?7:Y<5?7.1:7.5,vol:0,min:1,ideal:1,tax:'slab',rt:'6.9–7.5%',what:'The post office version of an FD, backed by the Government of India: 1 yr 6.9%, 2 yrs 7.0%, 3 yrs 7.1%, 5 yrs 7.5%.',good:'Safe one-time money. Usually beats big-bank FDs. The 5-year deposit also saves tax under 80C (old regime).',watch:'Interest is taxable. Closing early cuts the rate.',lock:'Can close after 6 months, at a lower rate',fl:'Where to get it',f:['Any post office','India Post Payments Bank (IPPB) app'],buy:'Post office or IPPB app.'},
+{id:'mis',n:'Post Office Monthly Income Scheme',g:'Government & post office',r:1,ret:7.4,vol:0,min:5,ideal:5,lockY:5,tax:'slab',rt:'7.4%',what:'Deposit once and get fixed interest in your account every month for 5 years.',good:'Monthly income for parents or retirees.',watch:'Maximum ₹9 lakh (₹15 lakh joint). Interest is paid out, so the values here assume you reinvest it. Taxable.',lock:'5 years (exit after 1 yr with 1–2% penalty)',fl:'Where to get it',f:['Any post office','India Post Payments Bank (IPPB) app'],buy:'Post office.'},
+{id:'epf',n:'EPF / VPF (Provident Fund)',g:'Government & post office',r:1,ret:8.25,vol:0,min:15,ideal:15,lockY:15,tax:'ex',rt:'8.25%',elig:'Salaried only',what:'Retirement savings cut from your salary, with your employer adding the same amount. VPF lets you put in extra voluntarily at the same rate.',good:'The safest high-interest retirement saving for salaried people. Raising VPF is a simple safe option.',watch:'Interest on your own contributions above ₹2.5 lakh a year is taxable. Meant for retirement.',lock:'Until retirement (part withdrawals for house, education, illness)',fl:'Where',f:['Automatic through your employer (EPF)','Ask HR / payroll to start VPF','Check balance on the EPFO portal or UMANG app'],buy:'Through your employer.'},
+{id:'apy',n:'Atal Pension Yojana (APY)',g:'Government & post office',r:1,ret:0,vol:0,min:15,ideal:15,tax:'slab',rt:'Fixed pension',noVal:'Pension ₹1,000–5,000/month at 60',elig:'Age 18–40, non-taxpayers',what:'Pay a small fixed amount every month until 60, then get a government-guaranteed pension of ₹1,000–₹5,000 a month for life.',good:'People with no pension, such as household helpers, drivers or small shop owners. Worth telling family and staff about.',watch:'Income-tax payers cannot join. The pension is fixed and does not rise with inflation.',lock:'Until age 60',fl:'Where to get it',f:['Your bank (branch or net banking)','Post office savings account'],buy:'The bank where you have a savings account.'},
+{id:'gsec',n:'G-Secs & T-Bills (RBI Retail Direct)',g:'Government & post office',r:1,ret:6.6,vol:0,min:1,ideal:1,tax:'slab',rt:'~6.5–7%',what:'Lend directly to the Government of India through RBI. T-Bills last up to 1 year, and G-Secs from 5 to 40 years.',good:'The safest place for large sums, with a fixed date and fixed interest.',watch:'Selling before maturity may be at a lower price. Interest is taxable.',lock:'Hold to maturity for a fixed return',fl:'Where to get it',f:['RBI Retail Direct (rbiretaildirect.org.in), free account','Brokers like Zerodha or Groww (G-Sec section)'],buy:'RBI Retail Direct website.'},
+{id:'sgb',n:'Sovereign Gold Bonds (SGB)',g:'Government & post office',r:3,ret:9,vol:15,min:8,ideal:8,tax:'ex',rt:'Closed',gone:1,noVal:'No new issues',what:'Government gold bonds that paid the gold price plus 2.5% interest.',good:'Old bonds can still be bought on the stock exchange (needs demat).',watch:'The government stopped new issues. The last one was in February 2024. Use gold funds instead.',lock:'8 years',fl:'Where',f:['Existing bonds trade on NSE / BSE (needs demat)'],buy:'Stock exchange only.'},
+{id:'liquid',n:'Liquid funds',g:'Low-risk mutual funds',r:1,ret:6.0,vol:.5,min:0,ideal:0,to:1,tax:'slab',what:'A mutual fund that lends money for up to 91 days. It\'s like a savings account that pays a bit more.',good:'An emergency fund, or parking money for days to months.',watch:'Gains are taxed at your slab rate. Too slow for long goals.',lock:'None. Withdraw any day.',fl:'Example funds',f:['Parag Parikh Liquid Fund','HDFC Liquid Fund','ICICI Prudential Liquid Fund','SBI Liquid Fund','Aditya Birla Sun Life Liquid Fund','Axis Liquid Fund']},
+{id:'mm',n:'Money market funds',g:'Low-risk mutual funds',r:1,ret:6.8,vol:1,min:0,ideal:0,to:2,tax:'slab',what:'Lends to banks, companies and the government for up to 1 year. Usually pays slightly more than liquid funds.',good:'Money needed in 6 months to 2 years.',watch:'Taxed at your slab rate. The value can dip slightly in rare stress.',lock:'None',fl:'Example funds',f:['HDFC Money Market Fund','ICICI Prudential Money Market Fund','Aditya Birla Sun Life Money Market Fund','Kotak Money Market Fund','Tata Money Market Fund','Nippon India Money Market Fund']},
+{id:'arb',n:'Arbitrage funds',g:'Low-risk mutual funds',r:1,ret:6.6,vol:1,min:0,ideal:0,to:3,tax:'eq',what:'Earns the small price gap between the share market and the futures market. Returns are close to liquid funds, but it\'s taxed like equity.',good:'1–3 year money if you are in the 20–30% tax slab.',watch:'Returns drop in calm markets. The 2026 tax change on futures trades cut returns slightly. Usually a 0.25% fee if sold within a month.',lock:'None',fl:'Example funds',f:['Kotak Arbitrage Fund','SBI Arbitrage Fund','ICICI Prudential Arbitrage Fund','Tata Arbitrage Fund','Invesco India Arbitrage Fund','Nippon India Arbitrage Fund']},
+{id:'short',n:'Short-term & corporate bond funds',g:'Low-risk mutual funds',r:2,ret:7.2,vol:2.5,min:1,ideal:2,to:5,tax:'slab',what:'Lends to strong companies and the government for 1–4 years. A bit better than an FD, and you can withdraw anytime.',good:'Goals 2–5 years away. An FD alternative.',watch:'Can fall a little when interest rates rise. Taxed at your slab rate. Avoid "credit risk" funds.',lock:'None',fl:'Example funds',f:['HDFC Short Term Fund','ICICI Prudential Short Term Fund','SBI Short Term Fund','Aditya Birla Sun Life Corporate Bond Fund','HDFC Corporate Bond Fund','ICICI Prudential Corporate Bond Fund']},
+{id:'gilt',n:'Gilt funds (government bonds)',g:'Low-risk mutual funds',r:2,ret:7.3,vol:5,min:3,ideal:5,tax:'slab',what:'A mutual fund that lends only to the Government of India, so there is no risk of default. Prices move with interest rates.',good:'Safe money for 3–5+ years. These gain when interest rates fall.',watch:'Can drop 3–5% when interest rates rise. Taxed at your slab rate.',lock:'None',fl:'Example funds',f:['SBI Gilt Fund','ICICI Prudential Gilt Fund','HDFC Gilt Fund','Kotak Gilt Fund','DSP Gilt Fund']},
+{id:'bharat',n:'Bharat Bond / target maturity funds',g:'Low-risk mutual funds',r:1,ret:7,vol:2,min:3,ideal:4,tax:'slab',what:'Holds government or PSU bonds until a fixed year. It works like an FD with a known end date, but you can still sell anytime.',good:'Goals with a fixed date. Pick the fund that matures near your goal year.',watch:'The value moves a little before maturity. Taxed at your slab rate.',lock:'None (best held to maturity)',fl:'Example funds',f:['Bharat Bond FoF – April 2030','Bharat Bond FoF – April 2031','Bharat Bond ETF FoF – April 2032','Bharat Bond ETF FoF – April 2033','Bharat Bond ETFs on the stock exchange (needs demat)']},
+{id:'eqsav',n:'Equity savings funds',g:'Hybrid (mix) funds',r:2,ret:8.5,vol:6,min:2,ideal:3,to:6,tax:'eq',what:'About one-third shares, one-third arbitrage and one-third bonds. Steadier than pure equity, and taxed like equity.',good:'2–4 year goals, and first-time investors.',watch:'Can still show small losses for a few months.',lock:'None (small exit fee in the first year)',fl:'Example funds',f:['Kotak Equity Savings Fund','ICICI Prudential Equity Savings Fund','HDFC Equity Savings Fund','SBI Equity Savings Fund','Edelweiss Equity Savings Fund','Mirae Asset Equity Savings Fund']},
+{id:'baf',n:'Balanced advantage funds',g:'Hybrid (mix) funds',r:3,ret:10,vol:9,min:3,ideal:4,tax:'eq',what:'Automatically buys more shares when markets are cheap and fewer when they are expensive. A smoother ride.',good:'3–5+ year goals, and nervous first-time investors.',watch:'Lags pure equity in strong bull markets. Can fall 10–15% in crashes.',lock:'None (small exit fee in the first year)',fl:'Example funds',f:['HDFC Balanced Advantage Fund','ICICI Prudential Balanced Advantage Fund','Edelweiss Balanced Advantage Fund','Kotak Balanced Advantage Fund','Tata Balanced Advantage Fund','SBI Balanced Advantage Fund']},
+{id:'multi',n:'Multi-asset allocation funds',g:'Hybrid (mix) funds',r:3,ret:10.5,vol:9,min:3,ideal:5,tax:'h24',what:'Shares, bonds and gold (sometimes silver) in one fund, rebalanced for you.',good:'One-fund solution for 5+ years with less drama.',watch:'Tax treatment differs by fund, so check its equity share. Can still fall in crashes.',lock:'None',fl:'Example funds',f:['ICICI Prudential Multi Asset Allocation Fund','SBI Multi Asset Allocation Fund','Nippon India Multi Asset Allocation Fund','HDFC Multi Asset Allocation Fund','UTI Multi Asset Allocation Fund']},
+{id:'aggr',n:'Aggressive hybrid funds',g:'Hybrid (mix) funds',r:4,ret:11,vol:13,min:4,ideal:5,tax:'eq',what:'About 65–80% shares and the rest in bonds. Most of equity\'s growth with a little cushion.',good:'5+ year goals for moderate investors.',watch:'Can fall 20–25% in a crash.',lock:'None',fl:'Example funds',f:['ICICI Prudential Aggressive Hybrid Fund (formerly Equity & Debt)','SBI Aggressive Hybrid Fund (formerly Equity Hybrid)','HDFC Aggressive Hybrid Fund (formerly Hybrid Equity)','Kotak Aggressive Hybrid Fund (formerly Equity Hybrid)','Mirae Asset Aggressive Hybrid Fund','Canara Robeco Aggressive Hybrid Fund (formerly Equity Hybrid)']},
+{id:'index',n:'Index funds (Nifty 50 / Sensex)',g:'Equity (shares) funds',r:4,ret:11.5,vol:16,min:5,ideal:7,tax:'eq',what:'Simply buys the top 50 companies of India in the same proportion as the index. Very low cost, and no fund manager guesswork.',good:'The best "core" for any long-term goal. Great for beginners.',watch:'Falls with the market, sometimes 30–40% in a crash. Needs patience.',lock:'None',fl:'Example funds',f:['UTI Nifty 50 Index Fund','HDFC Nifty 50 Index Fund','ICICI Prudential Nifty 50 Index Fund','SBI Nifty Index Fund','Navi Nifty 50 Index Fund','UTI Nifty Next 50 Index Fund (next 50 companies, more risk)']},
+{id:'large',n:'Large cap funds',g:'Equity (shares) funds',r:4,ret:11.5,vol:15,min:5,ideal:7,tax:'eq',what:'A fund manager picks from India\'s 100 biggest companies.',good:'Steady long-term equity.',watch:'Many do not beat a cheaper Nifty 50 index fund, so compare costs.',lock:'None',fl:'Example funds',f:['Nippon India Large Cap Fund','ICICI Prudential Large Cap Fund (formerly Bluechip)','HDFC Large Cap Fund (formerly Top 100)','SBI Large Cap Fund (formerly Bluechip)','Canara Robeco Large Cap Fund','Mirae Asset Large Cap Fund']},
+{id:'flexi',n:'Flexi cap funds',g:'Equity (shares) funds',r:4,ret:12.5,vol:17,min:5,ideal:7,tax:'eq',what:'The manager can buy big, medium or small companies. All-weather equity in one fund.',good:'Core long-term holding. One fund can be enough.',watch:'Don\'t hold too many. One or two flexi caps is plenty.',lock:'None',fl:'Example funds',f:['Parag Parikh Flexi Cap Fund','HDFC Flexi Cap Fund','Kotak Flexi Cap Fund','Franklin India Flexi Cap Fund','UTI Flexi Cap Fund','DSP Flexi Cap Fund']},
+{id:'lm',n:'Large & mid cap funds',g:'Equity (shares) funds',r:4,ret:13,vol:18,min:6,ideal:8,tax:'eq',what:'At least 35% in big companies and 35% in mid-sized ones.',good:'8+ year goals wanting a bit more growth.',watch:'More ups and downs than large caps.',lock:'None',fl:'Example funds',f:['Mirae Asset Large & Midcap Fund','ICICI Prudential Large & Mid Cap Fund','Invesco India Large & Mid Cap Fund','HDFC Large and Mid Cap Fund','SBI Large & Midcap Fund','Bandhan Large & Mid Cap Fund']},
+{id:'multicap',n:'Multi cap funds',g:'Equity (shares) funds',r:5,ret:13,vol:19,min:6,ideal:8,tax:'eq',what:'At least 25% each in large, mid and small companies.',good:'Long-term growth across the whole market.',watch:'Fixed small-cap share means bigger falls in bad years.',lock:'None',fl:'Example funds',f:['Nippon India Multi Cap Fund','ICICI Prudential Multi Cap Fund','Mahindra Manulife Multi Cap Fund','Kotak Multi Cap Fund','HDFC Multi Cap Fund']},
+{id:'value',n:'Value & contra funds',g:'Equity (shares) funds',r:4,ret:12.5,vol:18,min:6,ideal:8,tax:'eq',what:'Buys good companies when they are out of favour and cheap.',good:'Adding variety next to a flexi or index fund.',watch:'Can lag for years before paying off.',lock:'None',fl:'Example funds',f:['SBI Contra Fund','ICICI Prudential Value Fund','Invesco India Contra Fund','Nippon India Value Fund','UTI Value Fund']},
+{id:'elss',n:'ELSS (tax saver) funds',g:'Equity (shares) funds',r:4,ret:12.5,vol:17,min:5,ideal:7,lockY:3,tax:'eq',what:'An equity fund with a 3-year lock-in that gives a tax deduction up to ₹1.5 lakh (80C).',good:'Saving tax in the OLD tax regime while growing money.',watch:'No tax benefit in the new regime. Each SIP instalment is locked for 3 years.',lock:'3 years',fl:'Example funds',f:['Mirae Asset ELSS Tax Saver Fund','Parag Parikh ELSS Tax Saver Fund','DSP ELSS Tax Saver Fund','Canara Robeco ELSS Tax Saver Fund','SBI ELSS Tax Saver Fund','Quant ELSS Tax Saver Fund']},
+{id:'mid',n:'Mid cap funds',g:'Equity (shares) funds',r:5,ret:14,vol:22,min:7,ideal:10,tax:'eq',what:'Medium-sized companies (ranked 101–250) that could become tomorrow\'s giants.',good:'10+ year goals for people who can sit through big falls.',watch:'Can fall 40–50% in bad years and take years to recover.',lock:'None',fl:'Example funds',f:['Motilal Oswal Midcap Fund','HDFC Mid Cap Fund','Kotak Mid Cap Fund (formerly Emerging Equity)','Edelweiss Mid Cap Fund','Nippon India Growth Mid Cap Fund','Axis Midcap Fund']},
+{id:'small',n:'Small cap funds',g:'Equity (shares) funds',r:5,ret:15,vol:27,min:8,ideal:10,tax:'eq',what:'Small companies, ranked 251 and beyond. The highest growth potential and the highest risk.',good:'A small slice (10–25%) of 10+ year money.',watch:'Falls of 50%+ have happened. Never use for short goals.',lock:'None',fl:'Example funds',f:['Nippon India Small Cap Fund','SBI Small Cap Fund','Bandhan Small Cap Fund','Axis Small Cap Fund','HDFC Small Cap Fund','Kotak Small Cap Fund']},
+{id:'stocks',n:'Company shares (long-term)',g:'Shares & real estate',r:5,ret:12,vol:25,min:7,ideal:10,tax:'eq',what:'Owning a small piece of real companies, bought to hold for many years, not to trade for days. This is investing, not trading.',good:'People who enjoy learning about businesses and can hold for 10+ years. Keep it a part of your equity money, not all of it.',watch:'A single company can fall 50–80% and never recover. Ignore social-media tips. Many beginners do better with an index fund.',lock:'None',fl:'How to start',f:['Open a demat account (Zerodha, Groww, Upstox, Angel One, ICICI Direct…)','Begin with large, well-known companies whose business you understand','Own 10–15 companies; keep any one under 10% of your shares','Look for steady profits, low debt and honest management','Buy small amounts monthly, not all at once','Check once or twice a year, not every day'],buy:'Through a demat + trading account.'},
+{id:'reit',n:'REITs (offices & malls)',g:'Shares & real estate',r:3,ret:10,vol:14,min:5,ideal:5,tax:'eq',what:'Own a small part of big office parks and malls, and receive a share of the rent every quarter. Real estate for a few hundred rupees.',good:'Regular income plus some growth. Adds real estate without buying property.',watch:'Unit prices move up and down like shares. Part of each payout is taxable. Only a handful are listed.',lock:'None',fl:'Listed REITs',f:['Embassy Office Parks REIT','Mindspace Business Parks REIT','Brookfield India Real Estate Trust','Nexus Select Trust (shopping malls)','Knowledge Realty Trust','Bagmane Prime Office REIT'],buy:'On the stock exchange through a demat account, like shares.'},
+{id:'intl',n:'International funds',g:'Global & commodities',r:5,ret:11,vol:18,min:7,ideal:8,tax:'h24',what:'Shares of US and global companies (Apple, Microsoft and so on). Also protects you when the rupee falls.',good:'A 5–15% slice of long-term money, for variety.',elig:'Mostly closed to new money',watch:'As of Nov 2026, most international funds are not accepting new investments because India caps how much mutual funds can invest abroad. They reopen from time to time, so check with the fund house before investing. Parag Parikh Flexi Cap also holds some US shares. Taxed at your slab rate if sold within 2 years.',lock:'None',fl:'Example funds',f:['Motilal Oswal S&P 500 Index Fund','Motilal Oswal Nasdaq 100 FoF','ICICI Prudential US Bluechip Equity Fund','ICICI Prudential NASDAQ 100 Index Fund','Mirae Asset S&P 500 Top 50 ETF FoF','Franklin U.S. Opportunities Equity Active FoF']},
+{id:'gold',n:'Gold funds',g:'Global & commodities',r:3,ret:9,vol:15,min:5,ideal:5,tax:'h24',what:'Tracks the price of gold. There\'s no locker or making charges, and you can start an SIP from ₹100.',good:'A 5–15% "insurance" slice. Gold often rises when shares fall.',watch:'Gold can also fall 15–20% and stay flat for years. Don\'t make it your main investment.',lock:'None',fl:'Example funds',f:['SBI Gold Fund','HDFC Gold ETF Fund of Fund','Nippon India Gold Savings Fund','ICICI Prudential Gold ETF FoF','Kotak Gold Fund','Axis Gold Fund']},
+{id:'silver',n:'Silver funds',g:'Global & commodities',r:5,ret:8,vol:28,min:7,ideal:8,tax:'h24',what:'Tracks the price of silver, which is used in jewellery and industry (solar, electronics).',good:'Only a tiny slice (0–5%) for those who want it.',watch:'Much more volatile than gold, with swings of 30–40% in a year.',lock:'None',fl:'Example funds',f:['ICICI Prudential Silver ETF FoF','Nippon India Silver ETF FoF','HDFC Silver ETF FoF','Kotak Silver ETF FoF','Aditya Birla Sun Life Silver ETF FoF','Axis Silver Fund of Fund']},
+{id:'sector',n:'Sector & theme funds',g:'Equity (shares) funds',r:5,ret:13,vol:28,min:10,ideal:10,tax:'eq',elig:'Experts only',what:'Bets on one theme: IT, banks, PSU, defence, pharma and so on.',good:'Experienced investors who track sectors.',watch:'Last year\'s top theme is often next year\'s worst. Beginners should skip these.',lock:'None',fl:'Example funds',f:['None listed. Not suggested for beginners.']}
+];
+const FC={"Parag Parikh Liquid Fund": 143269, "HDFC Liquid Fund": 119091, "ICICI Prudential Liquid Fund": 120197, "SBI Liquid Fund": 119800, "Aditya Birla Sun Life Liquid Fund": 119568, "Axis Liquid Fund": 120389, "HDFC Money Market Fund": 119092, "ICICI Prudential Money Market Fund": 120211, "Aditya Birla Sun Life Money Market Fund": 119511, "Kotak Money Market Fund": 119746, "Tata Money Market Fund": 119424, "Nippon India Money Market Fund": 118719, "Kotak Arbitrage Fund": 119771, "SBI Arbitrage Fund": 119574, "ICICI Prudential Arbitrage Fund": 120364, "Tata Arbitrage Fund": 145724, "Invesco India Arbitrage Fund": 120401, "Nippon India Arbitrage Fund": 118585, "HDFC Short Term Fund": 119016, "ICICI Prudential Short Term Fund": 120754, "SBI Short Term Fund": 119816, "Aditya Birla Sun Life Corporate Bond Fund": 119533, "HDFC Corporate Bond Fund": 118987, "ICICI Prudential Corporate Bond Fund": 120692, "SBI Gilt Fund": 119707, "ICICI Prudential Gilt Fund": 120590, "HDFC Gilt Fund": 119116, "Kotak Gilt Fund": 119759, "DSP Gilt Fund": 119099, "Bharat Bond FoF – April 2030": 147857, "Bharat Bond FoF – April 2031": 148450, "Bharat Bond ETF FoF – April 2032": 149401, "Bharat Bond ETF FoF – April 2033": 150989, "Kotak Equity Savings Fund": 131373, "ICICI Prudential Equity Savings Fund": 133054, "HDFC Equity Savings Fund": 119128, "SBI Equity Savings Fund": 134643, "Edelweiss Equity Savings Fund": 140347, "Mirae Asset Equity Savings Fund": 145693, "HDFC Balanced Advantage Fund": 118968, "ICICI Prudential Balanced Advantage Fund": 120377, "Edelweiss Balanced Advantage Fund": 118615, "Kotak Balanced Advantage Fund": 144335, "Tata Balanced Advantage Fund": 146010, "SBI Balanced Advantage Fund": 149134, "ICICI Prudential Multi Asset Allocation Fund": 120334, "SBI Multi Asset Allocation Fund": 119843, "Nippon India Multi Asset Allocation Fund": 148457, "HDFC Multi Asset Allocation Fund": 119131, "UTI Multi Asset Allocation Fund": 120760, "ICICI Prudential Aggressive Hybrid Fund (formerly Equity & Debt)": 120251, "SBI Aggressive Hybrid Fund (formerly Equity Hybrid)": 119609, "HDFC Aggressive Hybrid Fund (formerly Hybrid Equity)": 119062, "Kotak Aggressive Hybrid Fund (formerly Equity Hybrid)": 119767, "Mirae Asset Aggressive Hybrid Fund": 134813, "Canara Robeco Aggressive Hybrid Fund (formerly Equity Hybrid)": 118272, "UTI Nifty 50 Index Fund": 120716, "HDFC Nifty 50 Index Fund": 119063, "ICICI Prudential Nifty 50 Index Fund": 120620, "SBI Nifty Index Fund": 119827, "Navi Nifty 50 Index Fund": 149039, "UTI Nifty Next 50 Index Fund (next 50 companies, more risk)": 143341, "Nippon India Large Cap Fund": 118632, "ICICI Prudential Large Cap Fund (formerly Bluechip)": 120586, "HDFC Large Cap Fund (formerly Top 100)": 119018, "SBI Large Cap Fund (formerly Bluechip)": 119598, "Canara Robeco Large Cap Fund": 118269, "Mirae Asset Large Cap Fund": 118825, "Parag Parikh Flexi Cap Fund": 122639, "HDFC Flexi Cap Fund": 118955, "Kotak Flexi Cap Fund": 120166, "Franklin India Flexi Cap Fund": 118535, "UTI Flexi Cap Fund": 120662, "DSP Flexi Cap Fund": 119076, "Mirae Asset Large & Midcap Fund": 118834, "ICICI Prudential Large & Mid Cap Fund": 120596, "Invesco India Large & Mid Cap Fund": 120357, "HDFC Large and Mid Cap Fund": 130498, "SBI Large & Midcap Fund": 119721, "Bandhan Large & Mid Cap Fund": 118419, "Nippon India Multi Cap Fund": 118650, "ICICI Prudential Multi Cap Fund": 120599, "Mahindra Manulife Multi Cap Fund": 141226, "Kotak Multi Cap Fund": 149185, "HDFC Multi Cap Fund": 149368, "SBI Contra Fund": 119835, "ICICI Prudential Value Fund": 120323, "Invesco India Contra Fund": 120348, "Nippon India Value Fund": 118784, "UTI Value Fund": 120751, "Mirae Asset ELSS Tax Saver Fund": 135781, "Parag Parikh ELSS Tax Saver Fund": 147481, "DSP ELSS Tax Saver Fund": 119242, "Canara Robeco ELSS Tax Saver Fund": 118285, "SBI ELSS Tax Saver Fund": 119723, "Quant ELSS Tax Saver Fund": 120847, "Motilal Oswal Midcap Fund": 127042, "HDFC Mid Cap Fund": 118989, "Kotak Mid Cap Fund (formerly Emerging Equity)": 119775, "Edelweiss Mid Cap Fund": 140228, "Nippon India Growth Mid Cap Fund": 118668, "Axis Midcap Fund": 120505, "Nippon India Small Cap Fund": 118778, "SBI Small Cap Fund": 125497, "Bandhan Small Cap Fund": 147946, "Axis Small Cap Fund": 125354, "HDFC Small Cap Fund": 130503, "Kotak Small Cap Fund": 120164, "Motilal Oswal S&P 500 Index Fund": 148381, "Motilal Oswal Nasdaq 100 FoF": 145552, "ICICI Prudential US Bluechip Equity Fund": 120186, "ICICI Prudential NASDAQ 100 Index Fund": 149219, "Mirae Asset S&P 500 Top 50 ETF FoF": 149170, "Franklin U.S. Opportunities Equity Active FoF": 118551, "SBI Gold Fund": 119788, "HDFC Gold ETF Fund of Fund": 119132, "Nippon India Gold Savings Fund": 118663, "ICICI Prudential Gold ETF FoF": 120685, "Kotak Gold Fund": 119781, "Axis Gold Fund": 120473, "ICICI Prudential Silver ETF FoF": 149775, "Nippon India Silver ETF FoF": 149760, "HDFC Silver ETF FoF": 150737, "Kotak Silver ETF FoF": 151603, "Aditya Birla Sun Life Silver ETF FoF": 149780, "Axis Silver Fund of Fund": 150615};const SNAP={"143269": [6.5, 6.67, 6.19], "119091": [6.52, 6.88, 6.43], "120197": [6.51, 6.9, 6.44], "119800": [6.53, 6.86, 6.42], "119568": [6.61, 6.96, 6.52], "120389": [6.63, 6.96, 6.51], "119092": [6.48, 7.31, 6.8], "120211": [6.46, 7.31, 6.77], "119511": [6.5, 7.34, 6.84], "119746": [6.52, 7.32, 6.8], "119424": [6.58, 7.45, 6.94], "118719": [6.44, 7.34, 6.85], "119771": [6.6, 7.41, 6.97], "119574": [6.45, 7.23, 6.84], "120364": [6.48, 7.27, 6.77], "145724": [6.64, 7.41, 6.9], "120401": [6.71, 7.43, 7.14], "118585": [6.59, 7.28, 6.83], "119016": [4.69, 7.29, 6.55], "120754": [5.28, 7.55, 7.1], "119816": [4.39, 7.13, 6.38], "119533": [3.8, 6.88, 6.33], "118987": [3.55, 6.81, 6.16], "120692": [4.77, 7.19, 6.68], "119707": [4.36, 6.57, 6.36], "120590": [3.7, 6.65, 6.27], "119116": [2.92, 6.11, 5.32], "119759": [3.97, 5.74, 5.51], "119099": [3.12, 6.38, 5.79], "147857": [3.23, 7.06, 6.19], "148450": [3.09, 7.27, 6.13], "149401": [2.46, 6.88, null], "150989": [2.32, 6.89, null], "131373": [3.45, 9.93, 9.83], "133054": [3.49, 7.38, 7.71], "119128": [4.18, 9.03, 8.78], "134643": [3.37, 8.01, 8.28], "140347": [7.91, 11.24, 9.8], "145693": [6.41, 10.79, 9.46], "118968": [0.79, 11.26, 14.6], "120377": [5.81, 11.9, 11.15], "118615": [6.23, 11.69, 10.17], "144335": [4.29, 10.48, 9.68], "146010": [1.87, 8.82, 9.15], "149134": [1.15, 10.12, 10.42], "120334": [0.39, 13.36, 14.73], "119843": [4.4, 13.92, 12.85], "148457": [5.9, 16.9, 14.41], "119131": [2.58, 12.06, 10.97], "120760": [0.16, 13.34, 13.15], "120251": [1.21, 13.35, 14.04], "119609": [4.95, 13.15, 10.47], "119062": [-1.73, 8.26, 8.94], "119767": [5.64, 13.33, 12.1], "134813": [5.95, 12.66, 10.77], "118272": [4.29, 11.93, 10.4], "120716": [-1.94, 9.59, 8.7], "119063": [-2.04, 9.52, 8.66], "120620": [-1.98, 9.53, 8.67], "119827": [-2.02, 9.53, 8.67], "149039": [-1.85, 9.64, 8.75], "143341": [5.88, 16.27, 11.29], "118632": [0.05, 13.03, 13.91], "120586": [-2.15, 12.14, 11.91], "119018": [0.53, 10.43, 11.87], "119598": [2.02, 10.94, 10.07], "118269": [1.35, 12.79, 10.61], "118825": [0.83, 11.02, 9.27], "122639": [0.55, 12.67, 11.85], "118955": [5.24, 17.5, 17.84], "120166": [0.95, 13.21, 11.62], "118535": [-0.81, 11.96, 11.89], "120662": [3.21, 9.74, 5.29], "119076": [3.37, 12.34, 10.95], "118834": [2.29, 12.55, 11.02], "120596": [-4.2, 13.28, 14.02], "120357": [14.92, 23.06, 18.68], "130498": [1.3, 12.65, 13.94], "119721": [0.1, 12.55, 12.64], "118419": [3.49, 17.1, 16.92], "118650": [0.35, 13.05, 16.14], "120599": [2.98, 13.27, 13.63], "141226": [11.05, 16.14, 15.29], "149185": [3.87, 16.68, 17.52], "149368": [-0.99, 11.1, null], "119835": [-2.35, 10.91, 14.74], "120323": [-2.79, 13.05, 14.83], "120348": [3.01, 15.72, 13.77], "118784": [-4.34, 12.09, 13.36], "120751": [-1.02, 12.74, 11.72], "135781": [1.66, 13.33, 11.39], "147481": [-4.82, 9.44, 11.45], "119242": [2.07, 14.93, 13.38], "118285": [4.21, 12.87, 10.91], "119723": [-1.55, 14.12, 14.82], "120847": [10.46, 14.13, 14.35], "127042": [2.41, 17.22, 19.49], "118989": [3.61, 15.72, 18.62], "119775": [4.38, 15.51, 15.53], "140228": [4.68, 18.41, 17.54], "118668": [5.02, 15.98, 17.17], "120505": [8.34, 16.15, 12.81], "118778": [6.92, 12.31, 17.39], "125497": [7.57, 10.61, 12.54], "147946": [8.81, 20.7, 19.58], "125354": [9.68, 13.4, 15.11], "130503": [-3.13, 8.36, 14.02], "120164": [8.44, 10.63, 11.21], "148381": [13.98, 21.23, 14.47], "145552": [27.52, 31.19, 19.63], "120186": [17.42, 16.53, 12.44], "149219": [15.33, 22.99, 15.35], "149170": [29.94, 36.83, 23.46], "118551": [5.33, 15.23, 6.84], "119788": [0.65, 25.47, 20.05], "119132": [0.61, 25.41, 19.9], "118663": [0.91, 25.42, 19.88], "120685": [0.99, 25.57, 20.04], "119781": [1.01, 25.46, 19.76], "120473": [0.9, 25.21, 19.98], "149775": [0.45, 26.11, null], "149760": [0.35, 26.05, null], "150737": [0.28, 26.18, null], "151603": [1.21, 26.37, null], "149780": [0.19, 26.11, null], "150615": [0.9, 26.58, null]};const SNAPD='2026-11-24';
+const BY=Object.fromEntries(C.map(c=>[c.id,c]));
+const COL=['#3b6fe0','#2e9e6b','#e8692c','#9b6bd6','#14a3b8','#c2185b'];
+const RC=['','var(--r1)','var(--r2)','var(--r3)','var(--r4)','var(--r5)'];
+const RN=['','Very low','Low','Medium','High','Very high'];
+const MIX=[
+ {s:[['fd',50],['mm',50]],b:[['arb',40],['mm',30],['eqsav',30]],g:[['eqsav',30],['baf',40],['index',30]]},
+ {s:[['fd',40],['mm',30],['arb',30]],b:[['arb',30],['short',30],['eqsav',40]],g:[['baf',40],['index',30],['flexi',30]]},
+ {s:[['short',40],['fd',30],['eqsav',30]],b:[['eqsav',40],['baf',30],['short',30]],g:[['baf',30],['index',35],['flexi',35]]},
+ {s:[['baf',40],['short',30],['index',30]],b:[['index',35],['flexi',35],['baf',30]],g:[['flexi',40],['index',30],['lm',20],['gold',10]]},
+ {s:[['index',40],['baf',30],['short',20],['gold',10]],b:[['index',30],['flexi',35],['mid',15],['baf',10],['gold',10]],g:[['flexi',35],['mid',25],['index',20],['small',10],['gold',10]]},
+ {s:[['index',40],['flexi',30],['baf',20],['gold',10]],b:[['index',30],['flexi',30],['mid',20],['small',10],['gold',10]],g:[['flexi',30],['mid',25],['small',20],['index',15],['gold',10]]},
+ {s:[['ppf',30],['index',35],['flexi',25],['gold',10]],b:[['index',30],['flexi',25],['mid',20],['small',15],['gold',10]],g:[['flexi',20],['mid',25],['small',20],['index',15],['gold',10],['stocks',10]]}];
+const NOTE=[
+ '<b>For about a year, safety matters most.</b> Share prices can drop 20% in a year and may not recover in time.',
+ '<b>Under 3 years, safety still comes first.</b> Low-risk funds beat an FD after tax for many people, and you can withdraw anytime.',
+ '<b>3–5 years: a little growth, with brakes.</b> Mixed funds add some shares but limit how far you can fall.',
+ '<b>5–7 years: shares start to make sense.</b> Over 5+ years, Indian shares have usually beaten FDs, but expect some bad years.',
+ '<b>7–10 years: let shares do the heavy lifting.</b> A small gold slice cushions the falls.',
+ '<b>10+ years: time is your biggest advantage.</b> Short-term falls matter much less, so most money can grow in equity.',
+ '<b>15+ years: think wealth and retirement.</b> Stay invested, raise your SIP every year, and ignore the news.'];
+const fmt=x=>'₹'+Math.round(x).toLocaleString('en-IN');
+const sh=x=>{const a=Math.abs(x),s=x<0?'-':'';return a>=1e7?s+'₹'+(a/1e7).toFixed(a>=1e9?0:2).replace(/\.00$/,'')+' Cr':a>=1e5?s+'₹'+(a/1e5).toFixed(2).replace(/\.00$/,'')+' L':s+fmt(a)};
+const words=x=>x>=1e7?(x/1e7).toLocaleString('en-IN',{maximumFractionDigits:2})+' crore':x>=1e5?(x/1e5).toLocaleString('en-IN',{maximumFractionDigits:2})+' lakh':x>=1e3?(x/1e3).toLocaleString('en-IN',{maximumFractionDigits:1})+' thousand':'';
+const num=s=>+String(s).replace(/[^0-9]/g,'')||0;
+const S={mode:'sip',amt:1000,Y:5,risk:'b',taxOn:false,slab:20,inf:6,goal:1e7,RY:5,now:0,step:0,real:false,goals:[{n:'House down payment',a:2000000,y:7},{n:"Child's education",a:2500000,y:15},{n:'Retirement',a:30000000,y:25}],mStep:0,bud:0,gm:'lump',gamt:100000,glock:5,g60:false,gdau:false};
+try{Object.assign(S,JSON.parse(localStorage.getItem('smp')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('smp',JSON.stringify(S))}catch(e){}};
+const bucket=Y=>Y<=1?0:Y<3?1:Y<5?2:Y<7?3:Y<10?4:Y<15?5:6;
+function plan(Y,risk,m,l){let p=MIX[bucket(Y)][risk].map(x=>[...x]);const i=p.findIndex(x=>x[0]=='ppf');
+ if(i>=0){const yr=m*12+l;const cap=yr>0?Math.min(p[i][1],150000/yr*100):p[i][1];const ex=p[i][1]-cap;p[i][1]=cap;if(ex>0){const j=p.findIndex(x=>x[0]=='index');p[j][1]+=ex}}return p}
+function rates(c,Y,sip){const mu=(c.rf?c.rf(Y):c.ret)/100,v=c.vol/100,h=sip?Math.max(Y*.6,1):Y,d=1.65*v/Math.sqrt(h);return[Math.max(mu-d,-.35),mu,mu+d]}
+function sim(m,l,Y,R,st){const r=(1+R)**(1/12)-1;let v=l,inv=l;for(let k=0;k<Y*12;k++){const s=m*(1+st)**Math.floor(k/12);v=(v+s)*(1+r);inv+=s}return{v,inv}}
+function evalP(list,Y,m,l,st){const sip=m>0;const it=list.map(([id,p])=>{const c=BY[id],f=p/100;return{c,p,sc:rates(c,Y,sip).map(R=>sim(m*f,l*f,Y,R,st))}});
+ const inv=it.reduce((a,x)=>a+x.sc[1].inv,0);const val=[0,1,2].map(k=>it.reduce((a,x)=>a+x.sc[k].v,0));
+ const tax=[0,1,2].map(k=>{let eq=0,t=0;for(const x of it){const g=Math.max(0,x.sc[k].v-x.sc[k].inv),ty=x.c.tax;
+  if(ty=='eq'){if(Y<=1&&sip||Y<1)t+=g*.2;else eq+=g}else if(ty=='slab')t+=g*S.slab/100;else if(ty=='h24')t+=g*(Y>=2?.125:S.slab/100)}
+  return(t+Math.max(0,eq-125000)*.125)*1.04});
+ const net=val.map((v,k)=>v-(S.taxOn?tax[k]:0));return{it,inv,val,tax,net}}
+const meter=r=>'<span class="meter" title="'+RN[r]+' risk">'+[1,2,3,4,5].map(i=>'<i style="'+(i<=r?'background:'+RC[r]:'')+'"></i>').join('')+'</span>';
+const gurl=n=>'https://www.google.com/search?q='+encodeURIComponent(n.replace(/\s*\(.*\)/,'')+' direct growth returns');
+const LIVE={};let LIVEOFF=false,LIVED=null;
+const fdate=d=>{const x=d instanceof Date?d:new Date(d);return x.getDate()+' '+MN[x.getMonth()]+' '+x.getFullYear()};
+const retTxt=a=>a?['1Y','3Y','5Y'].map((k,i)=>a[i]==null?'':'<span>'+k+' <b'+(a[i]<0?' style="color:var(--r5)"':'')+'>'+(a[i]>0?'+':'')+a[i].toFixed(1)+'%</b></span>').join(''):'';
+const fundList=c=>{const ex=c.fl=='Example funds'||c.fl=='Listed REITs';return'<ul class="funds">'+c.f.map(n=>{const code=FC[n];return'<li><div><span>'+n+'</span>'+(code?'<div class="rets" data-code="'+code+'">'+retTxt(LIVE[code]||SNAP[code])+'</div>':'')+'</div>'+(ex&&!/None|exchange/.test(n)?'<a href="'+gurl(n)+'" target="_blank" rel="noopener">More ↗</a>':'')+'</li>'}).join('')+'</ul>'+(c.f.some(n=>FC[n])?'<p class="sm mut" style="margin:6px 0 0">Yearly returns, Direct – Growth, <span data-asof>'+(LIVED?'live from AMFI data, '+fdate(LIVED):'as of '+fdate(SNAPD))+'</span>. Past returns don\'t predict future returns.</p>':'')};
+function calcR(data){const P=t=>{const[d,m,y]=t.split('-');return new Date(+y,m-1,+d)};const ld=P(data[0].date),ln=+data[0].nav;return{d:ld,r:[1,3,5].map(y=>{const t=new Date(ld);t.setFullYear(t.getFullYear()-y);const x=data.find(e=>P(e.date)<=t);if(!x||t-P(x.date)>10*864e5)return null;return((ln/+x.nav)**(1/y)-1)*100})}}
+async function loadLive(root){if(LIVEOFF||!root)return;const codes=[...new Set([...root.querySelectorAll('[data-code]')].map(e=>+e.dataset.code))].filter(c=>!LIVE[c]);
+ for(const c of codes){if(LIVEOFF)return;try{const ac=new AbortController(),tm=setTimeout(()=>ac.abort(),7000);const j=await (await fetch('https://api.mfapi.in/mf/'+c,{signal:ac.signal})).json();clearTimeout(tm);if(!j.data||!j.data.length)continue;
+  const o=calcR(j.data);LIVE[c]=o.r;if(!LIVED||o.d>LIVED)LIVED=o.d;document.querySelectorAll('[data-code="'+c+'"]').forEach(e=>e.innerHTML=retTxt(o.r));document.querySelectorAll('[data-asof]').forEach(e=>e.textContent='live from AMFI data, '+fdate(LIVED))}catch(e){LIVEOFF=true}}}
+const TAX={eq:'Sold within 1 year: 20% on profit. After 1 year: 12.5% on profit above ₹1.25 lakh a year (the first ₹1.25 lakh is tax-free).',slab:'Profit or interest is added to your income and taxed at your slab rate.',h24:'Sold within 2 years: your slab rate. After 2 years: 12.5% on profit.',ex:'Completely tax-free.',nps:'Part can be taken tax-free at 60. The rest buys a pension, which is taxed as income.'};
+const yrsTxt=c=>c.ideal>=15&&c.min>=15?'15+ years':(c.to?(c.min||'Any')+(c.min?'':' time')+' up to '+c.to+' yrs':'Possible from '+(c.min||0)+' yrs, best '+c.ideal+'+ yrs');
+function riskHTML(){return'<div class="seg">'+[['s','Low risk','var(--r1)'],['b','Medium risk','var(--r3)'],['g','High risk','var(--r5)']].map(([v,t,c])=>'<button class="chip pk" data-pk="'+v+'" aria-pressed="'+(S.risk==v)+'"><i style="background:'+c+'"></i>'+t+'</button>').join('')+'</div><details class="quiz"><summary>Not sure? Answer one question</summary><p class="sm" style="margin:8px 0">Imagine your ₹1,00,000 shows ₹80,000 a few months later. What would you do?</p><div class="risk">'+[['s','Take it out','I can\'t stand seeing a loss → Low risk','var(--r1)'],['b','Wait calmly','It will come back with time → Medium risk','var(--r3)'],['g','Invest more','Prices are on sale! → High risk','var(--r5)']].map(([v,t,d,c])=>'<button class="rk" data-pk="'+v+'"><i style="background:'+c+'"></i><b>'+t+'</b><small>'+d+'</small></button>').join('')+'</div></details>'}
+function rangeBar(inv,a,b,c){const mx=Math.max(c,inv)*1.04,P=x=>Math.max(2,Math.min(98,x/mx*100));
+ return'<div class="rbar"><div class="tr"></div><div class="rg" style="left:'+P(a)+'%;width:'+Math.max(1,P(c)-P(a))+'%"></div><div class="dot" style="left:'+P(inv)+'%"></div>'+
+ '<span class="mk" style="left:'+Math.min(85,Math.max(15,P(inv)))+'%">You put in '+sh(inv)+'</span><span class="mk b" style="left:'+Math.min(88,Math.max(12,P(a)))+'%">Bad '+sh(a)+'</span><span class="mk b" style="left:'+Math.min(88,Math.max(12,P(c)))+'%;'+(P(c)-P(a)<30?'display:none':'')+'">Good '+sh(c)+'</span></div>'}
+function opts(){return'<div class="opts"><label><input type="checkbox" data-o="taxOn" '+(S.taxOn?'checked':'')+'> Show after tax</label>'+(S.taxOn?'<label>My tax slab <select data-o="slab">'+[0,5,10,15,20,25,30].map(s=>'<option '+(S.slab==s?'selected':'')+'>'+s+'</option>').join('')+'</select>%</label>':'')+'<label>Inflation <input type="number" min="0" max="15" step="0.5" value="'+S.inf+'" data-o="inf" style="width:4.5em">%</label></div>'}
+function planHTML(E,Y,m,l,unit){const b=bucket(Y);
+ return'<div class="note">'+NOTE[b]+'</div><div class="mix" style="height:22px">'+E.it.map((x,i)=>'<span style="width:'+x.p+'%;background:'+COL[i]+'"></span>').join('')+'</div><div class="cards" style="margin-top:14px">'+
+ E.it.map((x,i)=>{const c=x.c,amt=(m||l)*x.p/100;return'<div class="card"><div class="top"><div style="display:flex;gap:10px"><span class="sw" style="background:'+COL[i]+'"></span><div><h3>'+c.n+'</h3><div class="sm mut">'+meter(c.r)+' '+RN[c.r]+' risk</div></div></div><div style="text-align:right"><div class="pct">'+Math.round(x.p)+'%</div><div class="sm"><b>'+fmt(amt)+'</b>'+unit+'</div></div></div><p class="sm" style="margin:10px 0 4px">'+c.what+'</p><p class="sm mut" style="margin:0">Could become about <b style="color:var(--ink)">'+sh(x.sc[1].v)+'</b></p><button class="lnk" data-f="'+c.id+'">'+c.fl+' ('+c.f.length+') ▾</button><div hidden data-fl="'+c.id+'">'+fundList(c)+'</div></div>'}).join('')+'</div><p class="sm mut" style="margin-top:12px">How to pick one fund per box: choose the <b>Direct – Growth</b> plan, a lower expense ratio, a big fund house, and a fund at least 5 years old. Don\'t chase last year\'s top performer. One fund per box is enough.</p>'}
+function verdict(c,Y){if(c.gone)return['b-no','No new issues'];if(c.elig)return['b-info',c.elig];if(c.lockY&&Y<c.lockY)return['b-no','Locked '+c.lockY+' yrs'];if(Y<c.min)return['b-no','Too risky for '+Y+' yr'+(Y>1?'s':'')];if(c.to&&Y>c.to)return['b-ok','Safe but slow'];if(Y>=c.ideal)return['b-yes','Good fit'];return['b-ok','Possible']}
+const Phi=z=>{const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),q=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-q:q};
+function stats(list,Y,sip){let mu=0,vv=0;const it=list.map(([id,p])=>({c:BY[id],w:p/100}));
+ for(const a of it){mu+=a.w*(a.c.rf?a.c.rf(Y):a.c.ret)/100;for(const b of it){const ea=a.c.vol>=8&&a.c.id!='gold',eb=b.c.vol>=8&&b.c.id!='gold';const rho=a===b?1:(ea&&eb?.8:0);vv+=a.w*b.w*a.c.vol/100*b.c.vol/100*rho}}
+ const v=Math.sqrt(vv),h=sip?Math.max(Y*.5,.5):Y;const ml=Math.log(1+mu)-v*v/2;
+ const loss=v<.004?0:Phi(-(ml*h)/(v*Math.sqrt(h)));const dd=Math.min(.6,v*(Y<3?1.6:Y<7?2:2.3));return{loss,dd}}
+const lossTxt=x=>x<.01?'Almost none':Math.round(x*100)+'%<small> (about 1 in '+Math.max(2,Math.round(1/x))+')</small>';
+const RK=[['s','Low risk','var(--r1)','FD + short-term debt funds',[['fd',50],['short',50]]],['b','Medium risk','var(--r3)','Balanced advantage + index funds',[['baf',50],['index',50]]],['g','High risk','var(--r5)','Flexi + mid + small cap funds',[['flexi',40],['mid',30],['small',30]]]];
+let CH=null,PATH=null,PROG=0,AID=0;
+function renderRisk(m,l,Y){$('g-risk').hidden=!S.amt;if(!S.amt)return;const sip=m>0;
+ const D=[['s','Low risk','var(--r1)'],['b','Medium risk','var(--r3)'],['g','High risk','var(--r5)']].map(([k,n,c])=>{const pl=plan(Y,k,m,l);return{k,n,c,pl,sub:pl.map(([id,p])=>shortN(id)+' '+Math.round(p)+'%').join(' · '),E:evalP(pl,Y,m,l,0),st:stats(pl,Y,sip)}});
+ const ok=D.filter(d=>d.st.loss<=(Y<3?.02:Y<7?.12:.1));const best=(ok.length?ok:[D[0]]).reduce((a,b)=>b.E.net[1]>a.E.net[1]?b:a).k;
+ const safe=D[0].E.net[1],bold=D[2],P=D.find(d=>d.k==S.risk),ord={s:0,b:1,g:2};let msg;
+ if(bold.st.loss>.2)msg='For '+Y+' year'+(Y>1?'s':'')+', high-risk funds have about a 1 in '+Math.max(2,Math.round(1/bold.st.loss))+' chance of ending with less than you put in. <b>Stick to low risk for money you need this soon.</b>';
+ else if(bold.st.loss>.07)msg='For '+Y+' years, high-risk funds may earn more but still carry a real chance of a loss. <b>Choose them only if you would truly wait out a fall.</b>';
+ else msg='With '+Y+' years, even high-risk funds rarely end in a loss. <b>Time is on your side, and the bigger risk is staying too safe.</b>';
+ if(ord[S.risk]>ord[best])msg='<b style="color:var(--r5)">Heads up:</b> you picked <b>'+P.n.toLowerCase()+'</b> for '+Y+' year'+(Y>1?'s':'')+'. There\'s about '+(P.st.loss<.01?'a very small':'a 1 in '+Math.max(2,Math.round(1/P.st.loss)))+' chance of ending below what you put in. <b>'+D.find(d=>d.k==best).n+' is the sensible choice for this time.</b>';
+ $('rk-sub').textContent='Same '+(sip?fmt(m)+' a month':fmt(l)+' one time')+', same '+Y+' year'+(Y>1?'s':'')+'. Tap a card to switch your whole plan to it.';
+ $('rk-msg').innerHTML=msg;
+ $('rk-cards').innerHTML=D.map(d=>'<button class="rc" data-pk="'+d.k+'" aria-pressed="'+(S.risk==d.k)+'"><div class="hd"><i style="background:'+d.c+'"></i>'+d.n+(best==d.k?'<span class="tag">Sensible for '+Y+' yr'+(Y>1?'s':'')+'</span>':'')+'</div><div class="sm mut">'+d.sub+'</div>'+(S.risk==d.k?'<div class="sm" style="font-weight:700;margin-top:6px">✓ Your plan</div>':'')+'<dl>'+
+ '<dt>Most likely you\'ll have</dt><dd>'+sh(d.E.net[1])+(d.k!='s'?' <small>'+(d.E.net[1]>=safe?'+':'')+sh(d.E.net[1]-safe)+' vs low risk</small>':'')+'</dd>'+
+ '<dt>In a bad case</dt><dd>'+sh(d.E.net[0])+'</dd>'+
+ '<dt>Chance you end with less than you put in</dt><dd>'+lossTxt(d.st.loss)+'</dd><div class="lossbar"><i style="width:'+Math.max(1,d.st.loss*100*2)+'%;background:'+d.c+'"></i></div>'+
+ '<dt>Worst dip you may see along the way</dt><dd>−'+Math.round(d.st.dd*100)+'%<small> (₹1 lakh may show '+sh(1e5*(1-d.st.dd))+')</small></dd></dl></button>').join('');
+ $('rk-ylt').textContent='Chance your '+P.n.toLowerCase()+' plan ends with less than you put in, by number of years (same amount):';
+ $('rk-yl').innerHTML=[1,3,5,7,10,15].map(y=>{const x=stats(plan(y,S.risk,m,l),y,sip).loss;return'<div'+(y==Y?' style="outline:2px solid var(--ink)"':'')+'>'+y+' yr<b>'+(x<.01?'~0%':Math.round(x*100)+'%')+'</b></div>'}).join('');
+ const ser=[];for(let t=0;t<=Y;t++){if(!t){ser.push({t,inv:l,lo:l,mid:l,hi:l,safe:l});continue}const e=evalP(P.pl,t,m,l,0),f=evalP(D[0].pl,t,m,l,0);ser.push({t,inv:e.inv,lo:e.net[0],mid:e.net[1],hi:e.net[2],safe:f.net[1]})}
+ CH={Y,m,l,P,ser};cancelAnimationFrame(AID);PATH=null;PROG=0;
+ $('rk-ct').textContent='Your '+P.n.toLowerCase()+' plan: '+(sip?fmt(m)+'/month':fmt(l))+' over '+Y+' years';
+ $('rk-cap').innerHTML='The shaded area is the likely range. Press <b>Play a sample market</b> to see one possible journey, with its ups and downs.';
+ $('rk-leg').innerHTML='<span><i style="background:'+P.c+';opacity:.3"></i>Likely range</span><span><i style="background:'+P.c+'"></i>Most likely</span><span><i style="background:var(--ink)"></i>Sample market</span><span><i style="background:var(--mut);height:2px"></i>Money you put in</span>'+(S.risk!='s'?'<span><i style="background:var(--r1);height:2px"></i>Low risk, most likely</span>':'');
+ drawRk()}
+function samplePath(){const{Y,m,l,P}=CH,it=P.pl.map(([id,p])=>({c:BY[id],w:p/100,v:l*p/100}));const n=()=>{let u=0,v=0;while(!u)u=Math.random();while(!v)v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)};
+ const out=[{k:0,v:l,inv:l}];let inv=l;for(let k=1;k<=Y*12;k++){const Z=n();let tot=0;for(const x of it){const mu=(x.c.rf?x.c.rf(Y):x.c.ret)/100,sg=x.c.vol/100,eq=x.c.vol>=8&&x.c.id!='gold',z=eq?Math.sqrt(.8)*Z+Math.sqrt(.2)*n():n();x.v=(x.v+m*x.w)*Math.exp(Math.log(1+mu)/12-sg*sg/24+sg/Math.sqrt(12)*z);tot+=x.v}inv+=m;out.push({k,v:tot,inv})}return out}
+function drawRk(){const sv=$('rk-svg');if(!CH||!sv)return;const W=sv.clientWidth,H=sv.clientHeight;if(!W||!H)return;const{Y,ser,P}=CH,L=W<520?46:62,Rp=12,T=12,B=26;
+ let mx=Math.max(...ser.map(d=>Math.max(d.hi,d.inv,d.safe)));if(PATH)mx=Math.max(mx,...PATH.map(p=>p.v));mx*=1.06;
+ const X=t=>L+t/Y*(W-L-Rp),Yv=v=>H-B-v/mx*(H-T-B),ln=(a,f)=>a.map((d,i)=>(i?'L':'M')+X(d.t).toFixed(1)+' '+Yv(f(d)).toFixed(1)).join('');
+ let g='';for(let i=0;i<=4;i++){const v=mx*i/4,y=Yv(v);g+='<line x1="'+L+'" x2="'+(W-Rp)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)"/><text x="'+(L-6)+'" y="'+(y+4)+'" text-anchor="end">'+(i?sh(v).replace('.00',''):'0')+'</text>'}
+ const st=Math.max(1,Math.ceil(Y/(W<520?4:8)));for(let t=0;t<=Y;t+=st)g+='<text x="'+X(t)+'" y="'+(H-6)+'" text-anchor="middle">'+(t?t+'y':'Now')+'</text>';
+ g+='<path d="'+ln(ser,d=>d.hi)+ser.slice().reverse().map(d=>'L'+X(d.t).toFixed(1)+' '+Yv(d.lo).toFixed(1)).join('')+'Z" style="fill:'+P.c+';opacity:.18"/>';
+ g+='<path d="'+ln(ser,d=>d.inv)+'" fill="none" stroke="var(--mut)" stroke-width="1.5" stroke-dasharray="5 4"/>';
+ if(S.risk!='s')g+='<path d="'+ln(ser,d=>d.safe)+'" fill="none" style="stroke:var(--r1)" stroke-width="2" stroke-dasharray="2 3"/>';
+ g+='<path d="'+ln(ser,d=>d.mid)+'" fill="none" style="stroke:'+P.c+'" stroke-width="3"/>';
+ if(PATH){const pts=PATH.slice(0,PROG+1);g+='<path d="'+pts.map((p,i)=>(i?'L':'M')+X(p.k/12).toFixed(1)+' '+Yv(p.v).toFixed(1)).join('')+'" fill="none" stroke="var(--ink)" stroke-width="2"/>';const e=pts[pts.length-1];g+='<circle cx="'+X(e.k/12)+'" cy="'+Yv(e.v)+'" r="5" fill="var(--ink)"/>'}
+ sv.innerHTML=g}
+function capPath(done){const pts=PATH.slice(0,PROG+1),e=pts[pts.length-1];let pk=0,dd=0,ddk=0;for(const p of pts){pk=Math.max(pk,p.v);const x=pk?1-p.v/pk:0;if(x>dd){dd=x;ddk=p.k}}const cur=pk?1-e.v/pk:0;
+ $('rk-cap').innerHTML=done?'<b>One possible future:</b> ended at <b>'+sh(e.v)+'</b> (you put in '+sh(e.inv)+', '+(e.v>=e.inv?'a gain of '+sh(e.v-e.inv):'<b style="color:var(--r5)">a loss of '+sh(e.inv-e.v)+'</b>')+'). Biggest dip on the way: <b>'+(dd<.01?'almost none':'−'+Math.round(dd*100)+'%</b> in year '+(Math.floor(ddk/12)+1))+'</b>'+'. Press play again for a different market.'
+ :'Year '+(Math.floor(e.k/12))+', month '+(e.k%12)+': <b>'+sh(e.v)+'</b> · you put in '+sh(e.inv)+(cur>.02?' · <b style="color:var(--r5)">down '+Math.round(cur*100)+'% from its high</b>':'')}
+function playRk(){if(!CH)return;cancelAnimationFrame(AID);PATH=samplePath();const N=PATH.length-1;if(matchMedia('(prefers-reduced-motion: reduce)').matches){PROG=N;drawRk();capPath(1);return}
+ const t0=performance.now(),dur=Math.min(4000,1500+N*12);const step=now=>{PROG=Math.min(N,Math.round((now-t0)/dur*N));drawRk();capPath(PROG>=N);if(PROG<N)AID=requestAnimationFrame(step)};AID=requestAnimationFrame(step)}
+const rkRO=new ResizeObserver(()=>drawRk());rkRO.observe($('rk-fig'));
+function renderGrow(){const m=S.mode=='sip'?S.amt:0,l=S.mode=='lump'?S.amt:0,Y=S.Y;
+ $('g-amtlbl').textContent=S.mode=='sip'?'How much every month?':'How much one time?';
+ $('g-chips').innerHTML=(S.mode=='sip'?[500,1000,5000,10000,25000]:[10000,50000,100000,500000,1000000]).map(v=>'<button class="chip" data-a="'+v+'" aria-pressed="'+(S.amt==v)+'">'+sh(v).replace('.00','')+'</button>').join('');
+ $("g-words").textContent=S.amt>=1e4?'= ₹'+words(S.amt)+(S.mode=='sip'?' a month':''):'';
+ $('g-ylab').textContent=Y+' year'+(Y>1?'s':'');$('g-yend').textContent='until '+(2026+Y);$('g-ytxt').textContent=Y+' year'+(Y>1?'s':'');
+ const E=evalP(plan(Y,S.risk,m,l),Y,m,l,0),fd=evalP([['fd',100]],Y,m,l,0),unit=S.mode=='sip'?'/month':' one time';
+ const real=E.net[1]/(1+S.inf/100)**Y;
+ const ST=stats(plan(Y,S.risk,m,l),Y,m>0),RN3={s:['Low risk','var(--r1)'],b:['Medium risk','var(--r3)'],g:['High risk','var(--r5)']}[S.risk];
+ $('g-res').innerHTML=S.amt?'<span class="pill"><i style="background:'+RN3[1]+'"></i>'+RN3[0]+' plan</span><div style="font-weight:700">In '+Y+' year'+(Y>1?'s':'')+' you could have about</div><div class="big">'+sh(E.net[1])+'</div>'+rangeBar(E.inv,E.net[0],E.net[1],E.net[2])+
+ '<div class="row"><span>You put in</span><b>'+fmt(E.inv)+'</b></div><div class="row"><span>Your money earns</span><b>'+fmt(E.net[1]-E.inv)+'</b></div>'+
+ '<div class="row"><span>In bad markets / good markets</span><b>'+sh(E.net[0])+' – '+sh(E.net[2])+'</b></div>'+
+ '<div class="row"><span>Chance of ending below what you put in</span><b>'+(ST.loss<.01?'Almost none':Math.round(ST.loss*100)+'% (1 in '+Math.max(2,Math.round(1/ST.loss))+')')+'</b></div>'+
+ '<div class="row"><span>Worst dip you may see along the way</span><b>−'+Math.round(ST.dd*100)+'%</b></div>'+
+ '<div class="row"><span>Worth in today\'s prices ('+S.inf+'% inflation)</span><b>'+sh(real)+'</b></div>'+
+ '<div class="row"><span>Same money in a bank FD/RD</span><b>'+sh(fd.net[1])+'</b></div>'+(S.taxOn?'<div class="row"><span>Tax already taken off</span><b>'+fmt(E.tax[1])+'</b></div>':'')+opts():'<div class="big" style="font-size:28px">Enter an amount to begin</div>';
+ $('g-plan').innerHTML=S.amt?planHTML(E,Y,m,l,unit):'';renderRisk(m,l,Y);
+ const rows=C.map(c=>{const e=evalP([[c.id,100]],Y,m,l,0);return{c,e,v:verdict(c,Y)}}).sort((a,b)=>({'b-yes':0,'b-ok':1,'b-info':2,'b-no':3}[a.v[0]]-{'b-yes':0,'b-ok':1,'b-info':2,'b-no':3}[b.v[0]])||(b.c.noVal?-1:b.e.net[1])-(a.c.noVal?-1:a.e.net[1]));
+ $('g-cmp').innerHTML='<thead><tr><th>Option</th><th>Risk</th><th>For '+Y+' yrs</th><th class="n">Likely value</th><th class="n">Bad – good</th></tr></thead><tbody>'+rows.map(({c,e,v})=>'<tr><td><button class="nm" data-d="'+c.id+'">'+c.n+'</button></td><td>'+meter(c.r)+'</td><td><span class="badge '+v[0]+'">'+v[1]+'</span></td><td class="n"><b>'+(c.noVal||!S.amt?'–':sh(e.net[1]))+'</b></td><td class="n mut">'+(c.noVal?c.noVal:S.amt&&c.vol?sh(e.net[0])+' – '+sh(e.net[2]):'Fixed')+'</td></tr>').join('')+'</tbody>'}
+function solve(f,goal){if(f(0)>=goal)return 0;let lo=0,hi=1000;while(f(hi)<goal&&hi<1e10)hi*=2;for(let i=0;i<50;i++){const md=(lo+hi)/2;f(md)<goal?lo=md:hi=md}return hi}
+function renderGoal(){const Y=S.RY,G=S.real?S.goal*(1+S.inf/100)**Y:S.goal,st=S.step/100,now=S.now;
+ $('r-chips').innerHTML=[500000,1000000,2500000,5000000,1e7].map(v=>'<button class="chip" data-g="'+v+'" aria-pressed="'+(S.goal==v)+'">'+sh(v).replace('.00','')+'</button>').join('');
+ $('r-words').textContent=S.goal?'= ₹'+words(S.goal):'';$('r-ylab').textContent=Y+' year'+(Y>1?'s':'');$('r-yend').textContent='by '+(2026+Y);
+ if(!S.goal){$('r-res').innerHTML='<div class="big" style="font-size:28px">Enter your goal</div>';$('r-plan').innerHTML='';return}
+ const f=k=>P=>evalP(plan(Y,S.risk,P,now),Y,P,now,st).net[k];
+ const P=solve(f(1),G),Pbad=solve(f(0),G),L=solve(L=>evalP(plan(Y,S.risk,0,L+now),Y,0,L+now,0).net[1],G);
+ const E=evalP(plan(Y,S.risk,P,now),Y,P,now,st),fdP=solve(P=>evalP([['fd',100]],Y,P,now,st).net[1],G);
+ $('r-res').innerHTML='<div style="font-weight:700">To reach '+sh(G)+(S.real?' (≈ '+sh(S.goal)+' today)':'')+' in '+Y+' year'+(Y>1?'s':'')+', invest about</div><div class="big">'+(P?fmt(Math.ceil(P/100)*100):'₹0')+'<span style="font-size:.35em"> /month</span></div>'+
+ (P?'<div class="row"><span>'+(st?'Starting amount, rising '+S.step+'% every year':'That\'s about')+'</span><b>'+(st?'last year ≈ '+fmt(P*(1+st)**(Y-1))+'/month':fmt(P/30)+' a day')+'</b></div>':'<div class="row"><span>Your money today is already enough on normal returns</span><b>🎉</b></div>')+
+ '<div class="row"><span>Or one time today instead</span><b>'+fmt(L+now)+'</b></div>'+
+ '<div class="row"><span>To be safe even in bad markets</span><b>'+fmt(Pbad)+'/month</b></div>'+
+ '<div class="row"><span>If you only used a bank RD</span><b>'+fmt(fdP)+'/month</b></div>'+
+ '<div class="row"><span>You will put in in total</span><b>'+sh(E.inv)+'</b></div>'+
+ (!S.real?'<div class="row"><span>'+sh(G)+' in '+(2026+Y)+' buys what this buys today</span><b>'+sh(G/(1+S.inf/100)**Y)+'</b></div>':'')+opts();
+ $('r-plan').innerHTML=planHTML(E,Y,P,0,'/month')+(now?'<p class="sm mut">Your '+fmt(now)+' invested today is split the same way.</p>':'')}
+const esc=t=>String(t).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';');
+const PRE=[['Emergency fund',300000,1],['Vacation',200000,2],['Car',800000,4],['House down payment',2000000,7],["Child's education",2500000,15],["Child's wedding",2000000,20],['Retirement',30000000,25]];
+const shortN=id=>BY[id].n.replace(/\s*\(.*\)/,'').replace(/ funds?$/,'');
+function renderManyRows(){$('m-rows').innerHTML='<div class="grow ghd"><span>Goal</span><span>Amount today</span><span>Years</span><span></span></div>'+S.goals.map((g,i)=>'<div class="grow"><input class="in" data-gi="'+i+'" data-gk="n" value="'+esc(g.n)+'" aria-label="Goal name" maxlength="40"><div class="money"><span>₹</span><input data-gi="'+i+'" data-gk="a" inputmode="numeric" value="'+(g.a?g.a.toLocaleString('en-IN'):'')+'" aria-label="Amount"></div><input class="in" type="number" min="1" max="40" data-gi="'+i+'" data-gk="y" value="'+g.y+'" aria-label="Years"><button class="x" data-rm="'+i+'" aria-label="Remove goal" style="float:none">×</button></div>').join('')+(S.goals.length?'':'<p class="mut">No goals yet. Add one below.</p>');
+ $('m-add').innerHTML=PRE.map((p,i)=>'<button class="chip" data-ad="'+i+'">+ '+p[0]+'</button>').join('');
+ document.querySelectorAll('#m-step .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v==S.mStep));setIn('m-bud',S.bud)}
+function goalNeed(g,st){const G=g.a*(1+S.inf/100)**g.y;const P=solve(P=>evalP(plan(g.y,S.risk,P,0),g.y,P,0,st).net[1],G);return{G,P,mix:plan(g.y,S.risk,P,0)}}
+function renderManyRes(){const st=S.mStep/100,gs=S.goals.filter(g=>g.a>0&&g.y>0),R=gs.map(g=>({g,...goalNeed(g,st)})),tot=R.reduce((a,x)=>a+x.P,0);
+ if(!R.length){$('m-res').innerHTML='<div class="big" style="font-size:28px">Add a goal to begin</div>';$('m-tab').innerHTML='';return}
+ let bud='';if(S.bud>0){const d=S.bud-tot;bud='<div class="row"><span>Your budget '+fmt(S.bud)+'/month</span><b>'+(d>=0?'✓ Fits, '+fmt(d)+' spare':'Short by '+fmt(-d))+'</b></div>'}
+ const t10=st?0:R.reduce((a,x)=>a+goalNeed(x.g,.1).P,0);
+ $('m-res').innerHTML='<div style="font-weight:700">To reach all '+R.length+' goal'+(R.length>1?'s':'')+', invest about</div><div class="big">'+fmt(Math.ceil(tot/100)*100)+'<span style="font-size:.35em"> /month</span></div><div class="mix">'+R.map((x,i)=>'<span style="width:'+(x.P/tot*100)+'%;background:'+COL[i%6]+'"></span>').join('')+'</div>'+
+ R.map((x,i)=>'<div class="row"><span><i class="sw" style="display:inline-block;background:'+COL[i%6]+';vertical-align:-1px;margin-right:6px"></i>'+esc(x.g.n)+'</span><b>'+fmt(x.P)+'/month</b></div>').join('')+bud+
+ (t10?'<div class="row"><span>If you raise SIPs 10% every year, you can start at</span><b>'+fmt(t10)+'/month</b></div>':(st?'<div class="row"><span>Amount shown is your starting SIP, rising '+S.mStep+'% a year</span><b></b></div>':''))+opts();
+ $('m-tab').innerHTML='<thead><tr><th>Goal</th><th class="n">Years</th><th class="n">Needed then</th><th class="n">SIP / month</th><th>Where to invest</th><th></th></tr></thead><tbody>'+R.map((x,i)=>'<tr><td><b>'+esc(x.g.n)+'</b></td><td class="n">'+x.g.y+' (by '+(2026+x.g.y)+')</td><td class="n">'+sh(x.G)+'</td><td class="n"><b>'+fmt(x.P)+'</b></td><td class="sm">'+x.mix.map(([id,p])=>shortN(id)+' '+Math.round(p)+'%').join(' · ')+'</td><td><button class="lnk" data-sp="'+S.goals.indexOf(x.g)+'">See plan →</button></td></tr>').join('')+'</tbody>'}
+const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const when=mo=>{const d=new Date(2026,10+mo,1);return MN[d.getMonth()]+' '+d.getFullYear()};
+function growSched(dep,months,depMonths,r){/*deposit dep at start of each period; interest monthly r/12, credited yearly*/let bal=0,acc=0,paid=0;const rows=[];for(let k=0;k<months;k++){if(k<depMonths&&dep(k)){bal+=dep(k);paid+=dep(k)}acc+=bal*r/12;if((k+1)%12==0){bal+=acc;acc=0;rows.push({y:(k+1)/12,paid,bal})}}return{bal,paid,rows}}
+const GS=[
+ {id:'kvp',d:'kvp',n:'Kisan Vikas Patra (KVP)',rt:'7.5%',r:7.5,modes:['lump'],m:115,min:1000,tax:'Interest taxable',ex:'Can be cashed after 2 years 6 months, at a lower value.',f:a=>{const rows=[];for(let y=1;y<=9;y++)rows.push({y,paid:a,bal:a*2**(y*12/115)});rows.push({y:9.6,paid:a,bal:2*a});return{paid:a,val:2*a,rows,pay:fmt(a)+' once',get:fmt(2*a)+' (your money doubles)'}}},
+ {id:'nsc',d:'nsc',n:'National Savings Certificate (NSC)',rt:'7.7%',r:7.7,modes:['lump'],m:60,min:1000,tax:'Interest taxable (80C in old regime)',ex:'Locked for 5 years; early exit only on death or court order.',f:a=>{const rows=[1,2,3,4,5].map(y=>({y,paid:a,bal:a*1.077**y}));return{paid:a,val:a*1.077**5,rows,pay:fmt(a)+' once',get:fmt(a*1.077**5)}}},
+ ...[[1,6.9],[2,7.0],[3,7.1],[5,7.5]].map(([n,r])=>({id:'td'+n,d:'potd',n:'Post Office Time Deposit – '+n+' yr',rt:r+'%',r,modes:['lump'],m:n*12,min:1000,tax:n==5?'Interest taxable (80C in old regime)':'Interest taxable',ex:'Interest is paid out every year. The amount shown assumes you reinvest it. Can close after 6 months at a lower rate.',f:a=>{const v=y=>a*(1+r/400)**(4*y);const rows=[];for(let y=1;y<=n;y++)rows.push({y,paid:a,bal:v(y)});return{paid:a,val:v(n),rows,pay:fmt(a)+' once',get:fmt(v(n))}}})),
+ {id:'rd',d:'fd',n:'Post Office Recurring Deposit (RD)',rt:'6.7%',r:6.7,modes:['month'],m:60,min:100,tax:'Interest taxable',ex:'Can close after 3 years. Miss a month and you pay a small penalty.',f:a=>{let rows=[];const v=k=>{let t=0;for(let j=0;j<k;j++)t+=a*(1+.067/4)**((k-j)/3);return t};for(let y=1;y<=5;y++)rows.push({y,paid:a*12*y,bal:v(12*y)});return{paid:a*60,val:v(60),rows,pay:fmt(a)+'/month for 5 years',get:fmt(v(60))}}},
+ {id:'ppf',d:'ppf',n:'Public Provident Fund (PPF)',rt:'7.1%',r:7.1,modes:['month','year'],m:180,payY:15,min:500,maxY:150000,tax:'Completely tax-free',ex:'Locked 15 years; partial withdrawal from year 7; loan from year 3. Can extend in 5-year blocks.',f:(a,md)=>{const g=growSched(md=='month'?k=>a:k=>k%12==0?a:0,180,180,.071);return{paid:g.paid,val:g.bal,rows:g.rows,pay:fmt(a)+(md=='month'?'/month':'/year')+' for 15 years',get:fmt(g.bal)+' tax-free'}}},
+ {id:'ssy',d:'ssy',n:'Sukanya Samriddhi Yojana (SSY)',rt:'8.2%',r:8.2,modes:['month','year'],m:252,payY:15,min:250,maxY:150000,el:'dau',tax:'Completely tax-free',ex:'You pay for 15 years; it matures 21 years after opening. 50% can be withdrawn at 18 for education.',f:(a,md)=>{const g=growSched(md=='month'?k=>a:k=>k%12==0?a:0,252,180,.082);return{paid:g.paid,val:g.bal,rows:g.rows,pay:fmt(a)+(md=='month'?'/month':'/year')+' for 15 years',get:fmt(g.bal)+' tax-free'}}},
+ {id:'mis',d:'mis',n:'Post Office Monthly Income Scheme (MIS)',rt:'7.4%',r:7.4,modes:['lump'],m:60,min:1000,max:900000,inc:1,tax:'Interest taxable',ex:'Max ₹9 lakh (₹15 lakh joint). Exit after 1 year with a 1–2% penalty.',f:a=>{const i=a*.074/12;return{paid:a,val:a+i*60,rows:[1,2,3,4,5].map(y=>({y,paid:a,bal:a+i*12*y})),pay:fmt(a)+' once',get:fmt(i)+' every month for 5 years, then your '+sh(a)+' back',incTxt:fmt(i)+'/month'}}},
+ {id:'scss',d:'scss',n:'Senior Citizens Savings Scheme (SCSS)',rt:'8.2%',r:8.2,modes:['lump'],m:60,min:1000,max:3000000,el:'60',inc:1,tax:'Interest taxable (80C in old regime)',ex:'Max ₹30 lakh. Can extend by 3 years. Early exit with a 1–1.5% penalty.',f:a=>{const i=a*.082/4;return{paid:a,val:a+i*20,rows:[1,2,3,4,5].map(y=>({y,paid:a,bal:a+i*4*y})),pay:fmt(a)+' once',get:fmt(i)+' every 3 months for 5 years, then your '+sh(a)+' back',incTxt:fmt(i/3)+'/month'}}},
+ {id:'frb',d:'frb',n:'RBI Floating Rate Savings Bonds',rt:'8.05%',r:8.05,modes:['lump'],m:84,min:1000,inc:1,tax:'Interest taxable',ex:'The rate resets every 6 months (NSC rate + 0.35%). Early exit only for senior citizens.',f:a=>{const i=a*.0805/2;return{paid:a,val:a+i*14,rows:[1,2,3,4,5,6,7].map(y=>({y,paid:a,bal:a+i*2*y})),pay:fmt(a)+' once',get:fmt(i)+' every 6 months for 7 years, then your '+sh(a)+' back',incTxt:fmt(i/6)+'/month'}}}];
+function renderGov(){const md=S.gm,a=S.gamt,L=S.glock;
+ document.querySelectorAll('#v-mode .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.gm==md));
+ $('v-amtlbl').textContent={lump:'How much, one time?',month:'How much every month?',year:'How much every year?'}[md];
+ $('v-chips').innerHTML=({lump:[10000,50000,100000,500000,1000000],month:[500,1000,5000,12500],year:[10000,50000,100000,150000]}[md]).map(v=>'<button class="chip" data-ga="'+v+'" aria-pressed="'+(a==v)+'">'+sh(v).replace('.00','')+'</button>').join('');
+ setIn('v-amt',a);$('v-llab').textContent='Up to '+L+' year'+(L>1?'s':'');if(document.activeElement!==$('v-lock'))$('v-lock').value=L;$('v-60').checked=S.g60;$('v-dau').checked=S.gdau;
+ const list=GS.filter(g=>g.modes.includes(md)).map(g=>{const yrs=g.m/12,o=a>0?g.f(a,md):null;let why='';
+  if(g.el=='60'&&!S.g60)why='Only for people aged 60+';else if(g.el=='dau'&&!S.gdau)why='Only for a daughter under 10';
+  else if(yrs>L+.01)why='Locks money for '+(+yrs.toFixed(1))+' years (more than '+L+')';
+  else if(a<g.min*(md=='year'?1:1))why='Minimum ₹'+g.min.toLocaleString('en-IN');
+  else if(g.max&&a>g.max)why='Maximum ₹'+g.max.toLocaleString('en-IN')+' (shown at full amount)';
+  else if(g.maxY&&(md=='month'?a*12:a)>g.maxY)why='Max ₹1.5 lakh a year (₹12,500 a month)';
+  const aft=g.r*(S.taxOn&&!/tax-free/i.test(g.tax)?1-S.slab/100:1);return{g,o,yrs,why,ok:!why||/shown at full/.test(why),aft}});
+ const ok=list.filter(x=>x.ok&&x.o);const best=ok.length?ok.reduce((p,c)=>c.aft>p.aft?c:p):null;
+ const lab={lump:fmt(a)+' one time',month:fmt(a)+' a month',year:fmt(a)+' a year'}[md];
+ $('v-h').textContent='All schemes for '+lab;
+ if(!a){$('v-res').innerHTML='<div class="big" style="font-size:28px">Enter an amount</div>';$('v-cards').innerHTML='';return}
+ if(!best){$('v-res').innerHTML='<div style="font-weight:700">No scheme fits yet</div><p style="margin-top:8px">Try allowing a longer lock-in, or change how you pay. PPF and Sukanya need 15+ years.</p>'+opts();}
+ else{const o=best.o,g=best.g;$('v-res').innerHTML='<span class="pill"><i style="background:var(--r1)"></i>Best fit for you</span><div style="font-weight:800;font-size:20px">'+g.n+' · '+g.rt+'</div>'+
+  '<div style="margin-top:6px">'+(g.inc?'You get':'You get back')+'</div><div class="big">'+(g.inc?o.incTxt:sh(o.val))+'</div>'+
+  '<div class="row"><span>You pay</span><b>'+o.pay+'</b></div><div class="row"><span>'+(g.inc?'You receive':'Paid out')+'</span><b style="white-space:normal;text-align:right">'+(g.inc?o.get:'in '+when(g.m)+' ('+(+best.yrs.toFixed(1))+' yrs)')+'</b></div>'+
+  '<div class="row"><span>Total interest earned</span><b>'+fmt(o.val-o.paid)+'</b></div><div class="row"><span>Tax</span><b>'+g.tax+'</b></div>'+
+  (ok.length>1?'<div class="row"><span>Next best</span><b>'+ok.filter(x=>x!==best).sort((p,c)=>c.aft-p.aft)[0].g.n.replace(/\s*\(.*\)/,'')+'</b></div>':'')+opts()}
+ const mx=21;$('v-cards').innerHTML=list.sort((p,c)=>(c.ok-p.ok)||c.aft-p.aft).map(x=>{const g=x.g,o=x.o,py=g.payY||(md=='month'?g.m/12:0),pw=(py/mx*100),tw=(x.yrs/mx*100);
+  return'<div class="card gs'+(x.ok?'':' fade')+'"><div class="top"><div><h3>'+g.n+'</h3><div class="sm mut">'+g.rt+' a year · '+g.tax+'</div></div>'+(best&&x===best?'<span class="badge b-yes">Best fit</span>':'')+'</div>'+
+  '<div class="tlb"><i style="left:0;width:'+tw+'%;background:var(--line)"></i>'+(pw?'<i style="left:0;width:'+pw+'%;background:var(--ink)"></i>':'')+'<b style="left:'+tw+'%"></b></div><div class="tll"><span>Now ('+when(0)+')</span><span>'+when(g.m)+'</span></div>'+
+  (o?'<div style="margin-top:10px" class="sm">You pay <b>'+o.pay+'</b></div><div class="sm" style="margin-top:2px">You get</div><div class="gv">'+(g.inc?o.incTxt:sh(o.val))+'</div><div class="sm mut">'+(g.inc?o.get:'in '+when(g.m)+' · interest '+fmt(o.val-o.paid))+'</div>':'')+
+  (x.why?'<div class="stt" style="color:'+(x.ok?'var(--mut)':'var(--r5)')+'">'+x.why+'</div>':'')+
+  '<p class="sm mut" style="margin:8px 0 0">'+g.ex+'</p><div style="display:flex;gap:16px;flex-wrap:wrap"><button class="lnk" data-yy="'+g.id+'">Year by year ▾</button><button class="lnk" data-d="'+g.d+'">About this scheme</button></div>'+
+  '<div hidden data-yt="'+g.id+'">'+(o?'<table class="ytab"><thead><tr><th>Year</th><th class="n">Paid so far</th><th class="n">'+(g.inc?'Paid + income so far':'Value')+'</th></tr></thead><tbody>'+o.rows.map(r=>'<tr><td>'+(+r.y.toFixed(1))+' ('+when(Math.round(r.y*12))+')</td><td class="n">'+fmt(r.paid)+'</td><td class="n"><b>'+fmt(r.bal)+'</b></td></tr>').join('')+'</tbody></table>':'')+'</div></div>'}).join('')}
+function detail(id){const c=BY[id];$('modal').innerHTML='<button class="x" data-close aria-label="Close">×</button><div class="sm mut">'+c.g+'</div><h2 style="margin:4px 0 8px">'+c.n+'</h2><div>'+meter(c.r)+' <b>'+RN[c.r]+' risk</b></div><p style="margin-top:12px">'+c.what+'</p><div class="kv"><b>Best for</b><span>'+yrsTxt(c)+'</span><b>Good for</b><span>'+c.good+'</span><b>Watch out</b><span>'+c.watch+'</span><b>Planning return</b><span>'+(c.vol?'~'+c.ret+'% a year on average. Single years can be far higher or lower.':c.ret+'% a year (fixed)')+'</span><b>Tax</b><span>'+TAX[c.tax]+'</span><b>Lock-in</b><span>'+c.lock+'</span>'+(c.elig?'<b>Who can invest</b><span>'+c.elig+'</span>':'')+'<b>How to invest</b><span>'+(c.buy||'Any MF app (Groww, Zerodha Coin, Kuvera, MF Central) or the fund house website. Pick "Direct – Growth".')+'</span></div><h3>'+c.fl+'</h3>'+fundList(c)+(c.fl=='Example funds'&&c.id!='sector'?'<p class="sm mut" style="margin-top:8px">Well-known funds in this category, in no particular order. Not recommendations.</p>':'');$('ov').classList.add('on');loadLive($('modal'));$('modal').querySelector('.x').focus()}
+const GRP=['All','Government & post office','Low-risk mutual funds','Hybrid (mix) funds','Equity (shares) funds','Shares & real estate','Global & commodities','Retirement'];let LF='All';
+function renderLearn(){$('l-filter').innerHTML=GRP.map(g=>'<button class="chip" data-lf="'+g+'" aria-pressed="'+(LF==g)+'">'+g+'</button>').join('');
+ const M=20,P=x=>Math.min(x,M)/M*100;
+ $('l-tl').innerHTML='<div class="axl"></div><div class="ax axl">'+[0,1,3,5,7,10,15,20].map(y=>'<span style="left:'+P(y)+'%">'+(y==20?'20+':y)+'</span>').join('')+'</div>'+
+ C.filter(c=>!c.gone&&(LF=='All'||c.g==LF)).map(c=>{const a=c.min,b=c.ideal,e=c.to||M;return'<div class="lab"><button class="nm" data-d="'+c.id+'">'+c.n+'</button></div><div class="bar" title="'+yrsTxt(c)+'"><i style="left:'+P(a)+'%;width:'+(P(Math.max(b,a))-P(a))+'%;background:'+RC[c.r]+';opacity:.35"></i><i style="left:'+P(Math.max(b,a))+'%;width:'+Math.max(2,P(e)-P(Math.max(b,a)))+'%;background:'+RC[c.r]+'"></i></div>'}).join('');
+ const GT={ex:'Tax-free',slab:'Interest taxable',nps:'Partly tax-free'};$('l-gov').innerHTML='<thead><tr><th>Scheme</th><th>Rate now</th><th>Lock-in</th><th>Who can invest</th><th>Tax</th></tr></thead><tbody>'+C.filter(c=>c.rt).map(c=>'<tr><td><button class="nm" data-d="'+c.id+'">'+c.n+'</button></td><td><b>'+c.rt+'</b></td><td>'+c.lock+'</td><td>'+(c.elig||'Anyone')+'</td><td>'+(c.id=='apy'?'Pension taxable':GT[c.tax])+'</td></tr>').join('')+'</tbody>';
+ $('l-gloss').innerHTML=[['SIP','Investing a fixed amount every month automatically. It buys more units when prices are low.'],['Lump sum','Investing a big amount at one time.'],['NAV','The price of one unit of a mutual fund. A high or low NAV doesn\'t make a fund good or bad.'],['Direct vs Regular plan','Direct has no agent commission, so you keep 0.5–1.5% more every year. Always pick Direct.'],['Growth vs IDCW','Growth reinvests profits (best for most people). IDCW pays some out and is taxed as income.'],['Expense ratio','The yearly fee the fund charges. Lower is better, especially for index and debt funds.'],['Exit load','A small fee (often 1%) if you sell within a set time, usually 1 year for equity funds.'],['XIRR / CAGR','Your yearly growth rate. Ignore it in the first year or two because it swings wildly.'],['Large / mid / small cap','Big (top 100), medium (101–250) and small (251+) companies by size.'],['Step-up SIP','Raising your SIP every year, such as +10%. One of the most powerful habits.'],['Old vs new tax regime','80C benefits (ELSS, PPF, NSC) only reduce tax in the old regime.']].map(([t,d])=>'<details><summary>'+t+'</summary><p class="sm" style="margin-top:6px">'+d+'</p></details>').join('');
+ $('l-mist').innerHTML=[['Stopping SIP in a fall','Falls are when your SIP buys cheapest. Stopping locks in the loss.'],['Too many funds','Five flexi caps own the same shares. 3–5 funds in total is plenty.'],['Equity for short goals','Money needed in under 3–5 years should not be in shares.'],['Chasing last year\'s winner','Top funds rotate. Pick consistent funds and stay.'],['No emergency fund first','Keep 6 months of expenses in a liquid fund or FD before investing.'],['Skipping insurance','Get term life and health insurance before chasing returns.']].map(([t,d])=>'<div class="card"><h3>'+t+'</h3><p class="sm mut" style="margin:6px 0 0">'+d+'</p></div>').join('')}
+function $(id){return document.getElementById(id)}
+function all(){renderManyRows();renderManyRes();renderGov();document.querySelectorAll('[data-risk]').forEach(e=>e.innerHTML=riskHTML());document.querySelectorAll('#g-mode .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v==S.mode));document.querySelectorAll('#r-step .chip').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v==S.step));renderGrow();renderGoal();save()}
+const setIn=(id,v)=>{const e=$(id);if(document.activeElement!==e)e.value=v?Number(v).toLocaleString('en-IN'):'0'};
+$('g-yrs').value=S.Y;$('r-yrs').value=S.RY;$('r-real').checked=S.real;setIn('g-amt',S.amt);setIn('r-amt',S.goal);setIn('r-now',S.now);
+document.addEventListener('click',e=>{const t=e.target.closest('button,[data-close]');if(e.target.id=='ov'){$('ov').classList.remove('on');return}if(!t)return;const d=t.dataset;
+ if(t.classList.contains('tab')){document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b==t));const k=t.id.slice(2);['grow','goal','many','gov','learn'].forEach(p=>{$('p-'+p).hidden=p!=k});$('p-grow2').hidden=k!='grow';try{history.replaceState(null,'','#'+k)}catch(x){}return}
+ if(d.close!==undefined){$('ov').classList.remove('on');return}
+ if(t.closest('#g-mode')){S.mode=d.v;S.amt=S.mode=='sip'?1000:100000;setIn('g-amt',S.amt);all();return}
+ if(d.a){S.amt=+d.a;setIn('g-amt',S.amt);all();return}
+ if(d.g){S.goal=+d.g;setIn('r-amt',S.goal);all();return}
+ if(t.closest('#r-step')){S.step=+d.v;all();return}
+ if(d.f){const box=t.parentNode.querySelector('[data-fl]');box.hidden=!box.hidden;if(!box.hidden)loadLive(box);t.textContent=t.textContent.replace(box.hidden?'▴':'▾',box.hidden?'▾':'▴');return}
+ if(d.d){detail(d.d);return}
+ if(d.lf){LF=d.lf;renderLearn();return}
+ if(d.gm){S.gm=d.gm;S.gamt={lump:100000,month:5000,year:50000}[d.gm];renderGov();save();return}
+ if(d.ga){S.gamt=+d.ga;renderGov();save();return}
+ if(d.yy){const b=document.querySelector('[data-yt="'+d.yy+'"]');b.hidden=!b.hidden;t.textContent=b.hidden?'Year by year ▾':'Year by year ▴';return}
+ if(d.pk){S.risk=d.pk;all();return}
+ if(t.id=='rk-play'){playRk();return}
+ if(d.rm!==undefined){S.goals.splice(+d.rm,1);renderManyRows();renderManyRes();save();return}
+ if(d.ad!==undefined){if(S.goals.length<8){const p=PRE[+d.ad];S.goals.push({n:p[0],a:p[1],y:p[2]})}renderManyRows();renderManyRes();save();return}
+ if(t.closest('#m-step')){S.mStep=+d.v;all();return}
+ if(d.sp!==undefined){const g=S.goals[+d.sp];S.goal=g.a;S.RY=g.y;S.real=true;S.step=S.mStep;S.now=0;$('r-yrs').value=g.y;$('r-real').checked=true;setIn('r-amt',S.goal);setIn('r-now',0);all();$('t-goal').click();scrollTo(0,0)}});
+document.addEventListener('input',e=>{const t=e.target,id=t.id;
+ if(id=='g-amt'){S.amt=num(t.value);t.value=S.amt?S.amt.toLocaleString('en-IN'):''}
+ else if(id=='r-amt'){S.goal=num(t.value);t.value=S.goal?S.goal.toLocaleString('en-IN'):''}
+ else if(id=='r-now'){S.now=num(t.value);t.value=S.now?S.now.toLocaleString('en-IN'):''}
+ else if(t.dataset.gk){const g=S.goals[+t.dataset.gi],k=t.dataset.gk;if(k=='n')g.n=t.value;else if(k=='a'){g.a=num(t.value);t.value=g.a?g.a.toLocaleString('en-IN'):''}else g.y=Math.max(1,Math.min(40,Math.round(+t.value)||1));renderManyRes();save();return}
+ else if(id=='v-amt'){S.gamt=num(t.value);t.value=S.gamt?S.gamt.toLocaleString('en-IN'):'';renderGov();save();return}
+ else if(id=='v-lock'){S.glock=+t.value;renderGov();save();return}
+ else if(id=='v-60'){S.g60=t.checked;renderGov();save();return}
+ else if(id=='v-dau'){S.gdau=t.checked;renderGov();save();return}
+ else if(id=='m-bud'){S.bud=num(t.value);t.value=S.bud?S.bud.toLocaleString('en-IN'):'';renderManyRes();save();return}
+ else if(id=='g-yrs')S.Y=+t.value;
+ else if(id=='rk-yrs'){S.Y=+t.value;$('g-yrs').value=S.Y}else if(id=='r-yrs')S.RY=+t.value;else if(id=='r-real')S.real=t.checked;
+ else if(t.dataset.o=='taxOn'){S.taxOn=t.checked;all();return}
+ else return;renderGrow();renderGoal();save()});
+document.addEventListener('change',e=>{const o=e.target.dataset.o;if(o=='slab'){S.slab=+e.target.value;all()}else if(o=='inf'){S.inf=Math.max(0,Math.min(15,+e.target.value||0));all()}});
+document.addEventListener('keydown',e=>{if(e.key=='Escape')$('ov').classList.remove('on')});
+renderLearn();all();
+const h=location.hash.slice(1);if(['goal','many','gov','learn'].includes(h))$('t-'+h).click();
+}
+</script>
+</body>
+</html>
